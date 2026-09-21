@@ -20,7 +20,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** FR-TKT-001 a FR-TKT-008, FR-SRC-004, AC-005, AC-008, UC-05, UC-08, QT-006 a QT-008. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
@@ -31,7 +30,6 @@ class TicketRepositoryTest extends PersistenceTestSupport {
         return crearEvento("CMF-2026", venue, EventStatus.PUBLISHED, FECHA_BASE);
     }
 
-    /** Tickets de ejemplo del PRD (seccion 16.3) sobre el evento CMF-2026. */
     private Event crearEscenarioDeVentas() {
         Event cmf = crearEventoCmf();
         crearTicket("TCK-0001", TicketType.VIP, "250000.00", TicketStatus.PAID, crearUsuario("andrea"), cmf);
@@ -109,12 +107,12 @@ class TicketRepositoryTest extends PersistenceTestSupport {
         crearTicket("TCK-0001", TicketType.BACKSTAGE, "300000.00", TicketStatus.USED, crearUsuario("andrea"), evento);
         flushAndClear();
 
-        String tipo = em.createNativeQuery(
-                        "SELECT type FROM tickets WHERE ticket_code = :codigo", String.class)
+        String tipo = (String) em.createNativeQuery(
+                        "SELECT type FROM tickets WHERE ticket_code = :codigo")
                 .setParameter("codigo", "TCK-0001")
                 .getSingleResult();
-        String estado = em.createNativeQuery(
-                        "SELECT status FROM tickets WHERE ticket_code = :codigo", String.class)
+        String estado = (String) em.createNativeQuery(
+                        "SELECT status FROM tickets WHERE ticket_code = :codigo")
                 .setParameter("codigo", "TCK-0001")
                 .getSingleResult();
 

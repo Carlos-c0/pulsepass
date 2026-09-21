@@ -14,11 +14,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * NFR-002, NFR-003, QT-001 y QT-002.
- * Si el contexto de Spring arranca, Flyway ya construyo el esquema desde una base vacia
- * y Hibernate lo valido (ddl-auto=validate). Aqui se comprueba de forma explicita.
- */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 class FlywayMigrationTest extends PersistenceTestSupport {

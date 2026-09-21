@@ -18,7 +18,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** FR-EVT-001 a FR-EVT-006, AC-002, AC-006, UC-02 y UC-06. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
@@ -71,12 +70,12 @@ class EventRepositoryTest extends PersistenceTestSupport {
         crearEvento("EVT-ENUM-01", venue, EventStatus.SOLD_OUT, FECHA_BASE);
         flushAndClear();
 
-        String categoria = em.createNativeQuery(
-                        "SELECT category FROM events WHERE event_code = :codigo", String.class)
+        String categoria = (String) em.createNativeQuery(
+                        "SELECT category FROM events WHERE event_code = :codigo")
                 .setParameter("codigo", "EVT-ENUM-01")
                 .getSingleResult();
-        String estado = em.createNativeQuery(
-                        "SELECT status FROM events WHERE event_code = :codigo", String.class)
+        String estado = (String) em.createNativeQuery(
+                        "SELECT status FROM events WHERE event_code = :codigo")
                 .setParameter("codigo", "EVT-ENUM-01")
                 .getSingleResult();
 

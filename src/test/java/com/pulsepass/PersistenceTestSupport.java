@@ -9,16 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Utilidades compartidas por las pruebas de persistencia.
- *
- * Las anotaciones (@SpringBootTest, @Import y @Transactional) van en cada clase concreta.
- * Cada prueba corre dentro de una transaccion que se revierte al terminar, asi que la base
- * queda como la dejan las migraciones (V2 inserta los artistas iniciales).
- */
 abstract class PersistenceTestSupport {
 
-    /** Fecha de referencia fija para que el orden y los filtros por fecha sean deterministas. */
     protected static final LocalDateTime FECHA_BASE = LocalDateTime.of(2030, 6, 1, 20, 0);
     protected static final LocalDateTime FECHA_COMPRA = FECHA_BASE.minusDays(30);
 
@@ -43,10 +35,6 @@ abstract class PersistenceTestSupport {
     @PersistenceContext
     protected EntityManager em;
 
-    /**
-     * Envia los cambios pendientes a PostgreSQL y vacia la cache de primer nivel.
-     * Lo que se consulte despues se lee de la base de datos y no de objetos en memoria.
-     */
     protected void flushAndClear() {
         em.flush();
         em.clear();
@@ -72,7 +60,6 @@ abstract class PersistenceTestSupport {
         return artistRepository.save(new Artist(stageName, "Colombia", "Pop"));
     }
 
-    /** Artista del catalogo inicial que inserta la migracion V2. */
     protected Artist artistaInicial(String stageName) {
         return artistRepository.findByStageName(stageName).orElseThrow();
     }

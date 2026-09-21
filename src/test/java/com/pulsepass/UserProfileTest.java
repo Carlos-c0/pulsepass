@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** FR-USR-001 a FR-USR-004, AC-004, UC-04 y QT-004. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional

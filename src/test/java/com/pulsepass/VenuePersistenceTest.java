@@ -16,7 +16,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** FR-VEN-001 a FR-VEN-004, AC-001, UC-01, QT-003 y QT-009. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional

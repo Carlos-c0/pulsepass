@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** FR-ART-001 a FR-ART-003, AC-003, UC-03 y QT-005. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional

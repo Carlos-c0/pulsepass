@@ -13,7 +13,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** FR-SRC-001 a FR-SRC-003, FR-ART-004, AC-007, UC-07, UC-09 y QT-008 (JPQL con JOIN). */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @Transactional
@@ -66,7 +65,6 @@ class EventSearchTest extends PersistenceTestSupport {
         Artist solarWind = crearArtista("Solar Wind");
         Artist neonWaves = artistaInicial("Neon Waves");
 
-        // Dos artistas del mismo evento contienen "solar": sin DISTINCT saldria repetido
         crearEvento("REC-OK-2", santaMarta, EventStatus.PUBLISHED, FECHA_BASE.plusDays(20), solarBeat, solarWind);
         crearEvento("REC-OK-1", santaMarta, EventStatus.PUBLISHED, FECHA_BASE.plusDays(10), solarWind);
         crearEvento("REC-BORRADOR", santaMarta, EventStatus.DRAFT, FECHA_BASE.plusDays(11), solarWind);
@@ -75,7 +73,6 @@ class EventSearchTest extends PersistenceTestSupport {
         crearEvento("REC-OTRO-ARTISTA", santaMarta, EventStatus.PUBLISHED, FECHA_BASE.plusDays(13), neonWaves);
         flushAndClear();
 
-        // "SOLAR" en mayusculas: la busqueda por artista no distingue mayusculas
         List<Event> recomendados = eventRepository.findRecommendedEvents(FECHA_BASE, "Santa Marta", "SOLAR");
 
         assertThat(recomendados).extracting(Event::getEventCode).containsExactly("REC-OK-1", "REC-OK-2");
