@@ -1,4 +1,8 @@
 package com.pulsepass.domain;
 
-public class TicketStatus {
+public enum TicketStatus {
+    RESERVED,
+    PAID,
+    CANCELLED,
+    USED
 }
