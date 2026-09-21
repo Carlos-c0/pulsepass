@@ -2,6 +2,7 @@ package com.pulsepass.repository;
 
 import com.pulsepass.domain.Event;
 import com.pulsepass.domain.EventStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,7 @@ import java.util.Optional;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
+    @EntityGraph(attributePaths = "venue")
     Optional<Event> findByEventCode(String eventCode);
 
     List<Event> findByStatusOrderByEventDateAsc(EventStatus status);
