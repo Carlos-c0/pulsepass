@@ -8,10 +8,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
+    Optional<Ticket> findByTicketCode(String ticketCode);
+
     List<Ticket> findByUser_EmailIgnoreCase(String email);
+
+    List<Ticket> findByUser_EmailIgnoreCaseOrderByPurchaseDateDesc(String email);
 
     List<Ticket> findByUser_EmailIgnoreCaseAndStatus(String email, TicketStatus status);
 

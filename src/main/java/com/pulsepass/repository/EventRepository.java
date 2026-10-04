@@ -16,6 +16,8 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @EntityGraph(attributePaths = "venue")
     Optional<Event> findByEventCode(String eventCode);
 
+    boolean existsByEventCode(String eventCode);
+
     List<Event> findByStatusOrderByEventDateAsc(EventStatus status);
 
     List<Event> findByVenue_CodeOrderByEventDateAsc(String venueCode);
