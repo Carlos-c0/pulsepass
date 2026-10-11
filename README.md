@@ -1,11 +1,12 @@
 # PulsePass
 
-Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene dos capas:
+Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene tres capas:
 
 - **Persistencia:** modelo relacional versionado con Flyway, entidades JPA, repositories Spring Data y pruebas de integración contra PostgreSQL real con Testcontainers.
 - **Servicios:** reglas de negocio, transacciones, DTOs, mapeo con MapStruct, excepciones de dominio y pruebas unitarias con Mockito.
+- **Controladores:** API REST con Spring MVC, validación de requests con Bean Validation, manejo centralizado de errores y pruebas de contrato HTTP con MockMvc.
 
-La fuente de verdad de los requisitos de persistencia es `PRD_PulsePass.md` y la de la capa de servicios es `PRD_PulsePass_Capa_Servicios`. Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `TEST-*`) son los de esos documentos.
+La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD_PulsePass_Capa_Servicios` (servicios) y `PRD_PulsePass_Capa_Controladores_v2` (controladores). Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `CTRL-*`, `TEST-*`) son los de esos documentos.
 
 ## Tecnologías
 
@@ -17,25 +18,27 @@ La fuente de verdad de los requisitos de persistencia es `PRD_PulsePass.md` y la
 | Base de datos | PostgreSQL |
 | Migraciones | Flyway (único responsable del esquema) |
 | Mapeo Entity → DTO | MapStruct |
-| Pruebas | JUnit 5, AssertJ, Mockito, Testcontainers |
+| API REST | Spring MVC, Bean Validation |
+| Pruebas | JUnit 5, AssertJ, Mockito, MockMvc, Testcontainers |
 | Build | Maven (`./mvnw`) |
 
 ## Requisitos previos
 
 - JDK 21.
-- Docker en ejecución para las pruebas de persistencia. Levantan su propio PostgreSQL con Testcontainers, así que **no hace falta instalar PostgreSQL** para probar. Las pruebas unitarias de la capa de servicios no necesitan Docker.
+- Docker en ejecución para las pruebas de persistencia. Levantan su propio PostgreSQL con Testcontainers, así que **no hace falta instalar PostgreSQL** para probar. Las pruebas unitarias de servicios y las de controladores no necesitan Docker.
 
 ## Estructura
 
 ```
 src/main/java/com/pulsepass/
+├── controller/    controllers REST (Venue, Event, Artist, User, Ticket)
 ├── domain/        entidades JPA y enums
 ├── repository/    interfaces JpaRepository con las consultas
 ├── dto/
 │   ├── request/   records de entrada (CreateEventRequest, RegisterUserRequest, PurchaseTicketRequest)
-│   └── response/  records de salida (VenueResponse, EventResponse, EventSummaryResponse, ...)
+│   └── response/  records de salida (VenueResponse, EventResponse, ..., ErrorResponse)
 ├── mapper/        mappers MapStruct Entity → DTO
-├── exception/     excepciones de dominio
+├── exception/     excepciones de dominio y GlobalExceptionHandler
 └── service/       interfaces de servicio
     └── impl/      implementaciones @Service y estrategia de precios
 src/main/resources/
@@ -43,6 +46,7 @@ src/main/resources/
 └── db/migration/  V1__create_schema, V2__insert_initial_artists, V3__add_streaming_url_to_event
 src/test/java/com/pulsepass/                pruebas de integración de persistencia
 src/test/java/com/pulsepass/service/impl/   pruebas unitarias de servicios
+src/test/java/com/pulsepass/controller/     pruebas de contrato HTTP con MockMvc
 ```
 
 ## Modelo de dominio
@@ -132,7 +136,7 @@ Consultas agregadas para la capa de servicios (todas Query Methods):
 - **Relaciones `LAZY` y `open-in-view=false`.** Un `Event` cargado fuera de una transacción trae su `venue` como proxy sin inicializar. Por eso `findByEventCode` usa `@EntityGraph(attributePaths = "venue")`: el evento y su venue llegan en una sola consulta (AC-002).
 - **Identificadores `IDENTITY`.** Coinciden con `BIGSERIAL` en PostgreSQL. Como el `INSERT` se ejecuta al hacer `save`, una violación de UNIQUE aparece de inmediato.
 - **La capa de persistencia no calcula `SOLD_OUT`** (BR-010): el repository persiste el estado tal como llega. Quien decide el cambio es `TicketService` al completar la capacidad (BR-TICKET-008).
-- **Sin API REST**: los controllers quedan fuera del alcance de ambos PRD.
+- **API REST sin autenticación**: los endpoints son públicos; seguridad, paginación y OpenAPI quedan fuera del alcance de los tres PRD.
 
 ## Capa de servicios
 
@@ -177,6 +181,68 @@ La compra es atómica: validar usuario, evento, edad y capacidad, calcular el pr
 - **Cancelar un ticket no devuelve el evento de `SOLD_OUT` a `PUBLISHED`**: el PRD no define esa transición.
 - **Concurrencia.** Contar tickets, validar capacidad y guardar no protege contra dos compras simultáneas del último cupo. Queda fuera del alcance (PRD, sección 53).
 
+## API REST
+
+Los controllers solo traducen HTTP a llamadas de Service y el resultado a HTTP: no tienen reglas de negocio, no usan repositories y solo retornan DTOs (CTRL-001 a 004). Cada método de los cinco Services tiene un endpoint: 20 operaciones en total.
+
+| Método | Endpoint | Service | Éxito |
+|---|---|---|---|
+| GET | `/api/venues/{code}` | `VenueService.findByCode` | 200 |
+| GET | `/api/venues/active` | `VenueService.findActiveVenues` | 200 |
+| POST | `/api/events` | `EventService.create` | 201 |
+| GET | `/api/events/{eventCode}` | `EventService.findByCode` | 200 |
+| GET | `/api/events/published` | `EventService.findPublishedEvents` | 200 |
+| PATCH | `/api/events/{eventCode}/publish` | `EventService.publish` | 200 |
+| POST | `/api/events/{eventCode}/artists/{artistId}` | `EventService.addArtist` | 200 |
+| GET | `/api/events/by-artist?stageName=...` | `EventService.findByArtist` | 200 |
+| GET | `/api/artists/{id}` | `ArtistService.findById` | 200 |
+| GET | `/api/artists/by-stage-name?stageName=...` | `ArtistService.findByStageName` | 200 |
+| GET | `/api/artists/active` | `ArtistService.findActiveArtists` | 200 |
+| POST | `/api/users` | `UserService.register` | 201 |
+| GET | `/api/users/by-email?email=...` | `UserService.findByEmail` | 200 |
+| GET | `/api/users/by-username?username=...` | `UserService.findByUsername` | 200 |
+| POST | `/api/tickets` | `TicketService.purchase` | 201 |
+| GET | `/api/tickets/{ticketCode}` | `TicketService.findByCode` | 200 |
+| GET | `/api/tickets/by-user?email=...` | `TicketService.findByUserEmail` | 200 |
+| GET | `/api/events/{eventCode}/tickets/paid` | `TicketService.findPaidTicketsByEvent` | 200 |
+| PATCH | `/api/tickets/{ticketCode}/cancel` | `TicketService.cancel` | 200 |
+| PATCH | `/api/tickets/{ticketCode}/use` | `TicketService.markAsUsed` | 200 |
+
+`GET /api/events/{eventCode}/tickets/paid` vive en `EventController` porque su ruta cuelga de un evento; por dentro llama a `TicketService`.
+
+### Validación de requests
+
+`CreateEventRequest`, `RegisterUserRequest` y `PurchaseTicketRequest` llevan anotaciones de Bean Validation (`@NotBlank`, `@NotNull`, `@Email`, `@Min`, `@Size`) y los endpoints los reciben con `@Valid @RequestBody`. Un request inválido se rechaza con 400 antes de llegar al Service. Las reglas de negocio (usuario activo, edad mínima, capacidad, transiciones de estado) siguen en los Services y llegan al cliente como 409.
+
+Las longitudes máximas coinciden con las columnas de la base de datos, para que un texto demasiado largo se rechace con 400 y no con un error de PostgreSQL.
+
+### Contrato de errores
+
+Todos los errores salen de `GlobalExceptionHandler` (`@RestControllerAdvice`) como `ResponseEntity<ErrorResponse>`:
+
+```json
+{
+  "timestamp": "2026-10-04T20:00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "details": {
+    "eventCode": "Event code is required"
+  }
+}
+```
+
+| Causa | Código | `message` |
+|---|---|---|
+| Bean Validation (`MethodArgumentNotValidException`) | 400 | `Validation failed`, con cada campo en `details` |
+| JSON mal formado o con un valor que no se puede convertir | 400 | `Malformed JSON request` |
+| Falta un `@RequestParam` obligatorio | 400 | `Missing required parameter: ...` |
+| Un parámetro de ruta con tipo incorrecto (`/api/artists/abc`) | 400 | `Invalid value for parameter: ...` |
+| `ResourceNotFoundException` o una ruta que no existe | 404 | El mensaje del Service |
+| Método HTTP no soportado en una ruta existente | 405 | `Method not allowed: ...` |
+| `DuplicateResourceException` o `BusinessRuleException` | 409 | El mensaje del Service |
+| Cualquier otra excepción | 500 | `Unexpected error`, sin detalles internos (NFR-CTRL-007); el detalle queda en el log |
+
 ## Pruebas
 
 ```bash
@@ -189,6 +255,12 @@ Para ejecutar solo las pruebas unitarias de servicios, sin Docker:
 
 ```bash
 ./mvnw test "-Dtest=*ServiceImplTest,DefaultTicketPricingStrategyTest"
+```
+
+Para ejecutar solo las pruebas de controladores, también sin Docker:
+
+```bash
+./mvnw test "-Dtest=*ControllerTest"
 ```
 
 Las clases terminan en `Test` (no en `IT`) para que `mvn test` las ejecute con Surefire. Las pruebas que escriben datos corren en una transacción que se revierte al terminar, y las que verifican lo que quedó en la base llaman a `flushAndClear()` antes de consultar, para que los datos se lean de PostgreSQL y no de la caché de Hibernate.
@@ -215,11 +287,21 @@ Pruebas unitarias de la capa de servicios. Usan `@ExtendWith(MockitoExtension.cl
 | `TicketServiceImplTest` | TEST-TICKET-001 a 012, BR-TICKET-005, 012, FR-SVC-014 a 016 |
 | `DefaultTicketPricingStrategyTest` | BR-TICKET-009 y la estrategia de precios |
 
+Pruebas de contrato HTTP. Usan `@WebMvcTest` (solo levanta la capa web), `MockMvc` y los Services reemplazados con `@MockitoBean`; no levantan PostgreSQL. Cada prueba valida el status, el `Content-Type`, los campos del JSON con `jsonPath` y la llamada al Service con `verify`. En los requests inválidos, `verify(..., never())` confirma que el Service nunca se invocó.
+
+| Clase | Cubre |
+|---|---|
+| `VenueControllerTest` | TEST-CTRL-VEN-001 a 003, error 500 sin detalles internos |
+| `ArtistControllerTest` | TEST-CTRL-ART-001 a 004, ID no numérico → 400 |
+| `EventControllerTest` | TEST-CTRL-EVT-001 a 009, TEST-CTRL-TKT-007 |
+| `UserControllerTest` | TEST-CTRL-USR-001 a 005, parámetro faltante → 400 |
+| `TicketControllerTest` | TEST-CTRL-TKT-001 a 006 y 008 a 011, JSON mal formado → 400 |
+
 Algunas pruebas usan SQL nativo únicamente para **verificar** constraints de PostgreSQL (por ejemplo, forzar un estado fuera del catálogo o un par evento-artista repetido). Los requisitos de consulta se resuelven solo con Query Methods y JPQL.
 
 ## Ejecutar la aplicación
 
-La aplicación no expone API: al arrancar, Flyway aplica las migraciones, Hibernate valida el esquema y Spring registra los servicios y mappers.
+Al arrancar, Flyway aplica las migraciones, Hibernate valida el esquema y la API queda disponible en `http://localhost:8080`.
 
 Con Testcontainers, sin instalar nada más:
 
@@ -235,3 +317,12 @@ docker run --name pulsepass-db -e POSTGRES_DB=pulsepass -e POSTGRES_PASSWORD=pos
 ```
 
 La conexión se configura con las variables `DB_URL`, `DB_USER` y `DB_PASSWORD`. Sus valores por defecto son `jdbc:postgresql://localhost:5432/pulsepass`, `postgres` y `postgres`.
+
+Para probar la API con la base recién creada (V2 ya trae los artistas):
+
+```bash
+curl http://localhost:8080/api/artists/active
+curl "http://localhost:8080/api/artists/by-stage-name?stageName=Solar%20Beat"
+```
+
+No hay endpoints para crear venues, así que para crear eventos primero hay que insertar un venue en la base de datos.
