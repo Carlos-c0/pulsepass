@@ -1,0 +1,10 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: pulsepass-db
+    environment:
+      POSTGRES_DB: pulsepass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
