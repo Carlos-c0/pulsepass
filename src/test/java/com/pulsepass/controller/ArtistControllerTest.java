@@ -2,11 +2,17 @@ package com.pulsepass.controller;
 
 import com.pulsepass.dto.response.ArtistResponse;
 import com.pulsepass.exception.ResourceNotFoundException;
+import com.pulsepass.security.CustomUserDetailsService;
+import com.pulsepass.security.JwtService;
+import com.pulsepass.security.RestAccessDeniedHandler;
+import com.pulsepass.security.RestAuthenticationEntryPoint;
+import com.pulsepass.security.SecurityConfig;
 import com.pulsepass.service.ArtistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ArtistController.class)
+@Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 class ArtistControllerTest {
 
     @Autowired
@@ -30,6 +37,14 @@ class ArtistControllerTest {
 
     @MockitoBean
     private ArtistService artistService;
+
+    // Dependencias del filtro JWT de SecurityConfig. En estas pruebas la identidad
+    // llega con .with(user(...)), asi que el filtro solo actua cuando hay un encabezado Bearer.
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private CustomUserDetailsService userDetailsService;
 
     @Test
     @DisplayName("TEST-CTRL-ART-001: buscar artista por ID retorna 200")
