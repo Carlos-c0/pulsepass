@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -56,6 +59,22 @@ public class GlobalExceptionHandler {
                 "Invalid value for parameter: " + ex.getName(),
                 Map.of(ex.getName(), "Invalid value")
         );
+    }
+
+    // ---------- 401: no hay una identidad valida ----------
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
+        // Solo los mensajes propios (BadCredentialsException) llegan al cliente; nunca detalles internos
+        String message = ex instanceof BadCredentialsException ? ex.getMessage() : "Authentication required";
+        return build(HttpStatus.UNAUTHORIZED, message, Map.of());
+    }
+
+    // ---------- 403: la identidad es valida pero no tiene permiso ----------
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        return build(HttpStatus.FORBIDDEN, "No tiene permisos para realizar esta operación", Map.of());
     }
 
     // ---------- 404: el recurso no existe ----------

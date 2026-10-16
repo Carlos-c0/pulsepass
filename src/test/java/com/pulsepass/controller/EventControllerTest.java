@@ -11,12 +11,18 @@ import com.pulsepass.dto.response.EventSummaryResponse;
 import com.pulsepass.dto.response.TicketResponse;
 import com.pulsepass.exception.BusinessRuleException;
 import com.pulsepass.exception.ResourceNotFoundException;
+import com.pulsepass.security.CustomUserDetailsService;
+import com.pulsepass.security.JwtService;
+import com.pulsepass.security.RestAccessDeniedHandler;
+import com.pulsepass.security.RestAuthenticationEntryPoint;
+import com.pulsepass.security.SecurityConfig;
 import com.pulsepass.service.EventService;
 import com.pulsepass.service.TicketService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,10 +31,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.pulsepass.support.TestPrincipals.admin;
+import static com.pulsepass.support.TestPrincipals.andrea;
+import static com.pulsepass.support.TestPrincipals.laura;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(EventController.class)
+@Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 class EventControllerTest {
 
     private static final LocalDateTime FECHA_EVENTO = LocalDateTime.of(2030, 6, 1, 20, 0);
@@ -62,14 +73,22 @@ class EventControllerTest {
     @MockitoBean
     private TicketService ticketService;
 
+    // Dependencias del filtro JWT de SecurityConfig. En estas pruebas la identidad
+    // llega con .with(user(...)), asi que el filtro solo actua cuando hay un encabezado Bearer.
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private CustomUserDetailsService userDetailsService;
+
     @Test
-    @DisplayName("TEST-CTRL-EVT-001: crear evento valido retorna 201")
+    @DisplayName("TEST-CTRL-EVT-001 / T-SEC-004: ADMIN crea un evento valido y recibe 201")
     void crearEventoValidoRetorna201() throws Exception {
         // ARRANGE
         when(eventService.create(any(CreateEventRequest.class))).thenReturn(evento(EventStatus.DRAFT));
 
         // ACT + ASSERT
-        mockMvc.perform(post("/api/events")
+        mockMvc.perform(post("/api/events").with(user(admin()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(EVENTO_VALIDO_JSON))
                 .andExpect(status().isCreated())
@@ -86,7 +105,7 @@ class EventControllerTest {
     }
 
     @Test
-    @DisplayName("TEST-CTRL-EVT-002: request invalido retorna 400 y no llama al Service")
+    @DisplayName("TEST-CTRL-EVT-002 / T-SEC-018: request invalido de un ADMIN retorna 400 y no llama al Service")
     void requestInvalidoRetorna400() throws Exception {
         // ARRANGE: sin eventCode, sin venueCode y con edad minima negativa
         String json = """
@@ -99,7 +118,7 @@ class EventControllerTest {
                 """;
 
         // ACT + ASSERT
-        mockMvc.perform(post("/api/events")
+        mockMvc.perform(post("/api/events").with(user(admin()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isBadRequest())
@@ -146,7 +165,7 @@ class EventControllerTest {
     }
 
     @Test
-    @DisplayName("TEST-CTRL-EVT-005: listar eventos publicados retorna 200")
+    @DisplayName("TEST-CTRL-EVT-005 / T-SEC-001: un anonimo lista los eventos publicados sin token")
     void listarPublicadosRetorna200() throws Exception {
         // ARRANGE
         when(eventService.findPublishedEvents()).thenReturn(List.of(resumen()));
@@ -163,13 +182,13 @@ class EventControllerTest {
     }
 
     @Test
-    @DisplayName("TEST-CTRL-EVT-006: publicar evento valido retorna 200")
+    @DisplayName("TEST-CTRL-EVT-006 / T-SEC-014: ADMIN publica un evento valido y recibe 200")
     void publicarValidoRetorna200() throws Exception {
         // ARRANGE
         when(eventService.publish("CMF-2026")).thenReturn(evento(EventStatus.PUBLISHED));
 
         // ACT + ASSERT
-        mockMvc.perform(patch("/api/events/{eventCode}/publish", "CMF-2026"))
+        mockMvc.perform(patch("/api/events/{eventCode}/publish", "CMF-2026").with(user(admin())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
@@ -185,7 +204,7 @@ class EventControllerTest {
                 "Only DRAFT events can be published. Current status: CANCELLED"));
 
         // ACT + ASSERT
-        mockMvc.perform(patch("/api/events/{eventCode}/publish", "CMF-2026"))
+        mockMvc.perform(patch("/api/events/{eventCode}/publish", "CMF-2026").with(user(admin())))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(409))
@@ -201,7 +220,7 @@ class EventControllerTest {
         when(eventService.addArtist("CMF-2026", 1L)).thenReturn(evento(EventStatus.PUBLISHED));
 
         // ACT + ASSERT
-        mockMvc.perform(post("/api/events/{eventCode}/artists/{artistId}", "CMF-2026", 1L))
+        mockMvc.perform(post("/api/events/{eventCode}/artists/{artistId}", "CMF-2026", 1L).with(user(admin())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.artists[0].id").value(1));
@@ -225,7 +244,7 @@ class EventControllerTest {
     }
 
     @Test
-    @DisplayName("TEST-CTRL-TKT-007: tickets PAID de un evento retorna 200")
+    @DisplayName("TEST-CTRL-TKT-007: STAFF consulta los tickets PAID de un evento y recibe 200")
     void ticketsPagadosDeEventoRetorna200() throws Exception {
         // ARRANGE
         TicketResponse ticket = new TicketResponse(
@@ -235,7 +254,7 @@ class EventControllerTest {
         when(ticketService.findPaidTicketsByEvent("CMF-2026")).thenReturn(List.of(ticket));
 
         // ACT + ASSERT
-        mockMvc.perform(get("/api/events/{eventCode}/tickets/paid", "CMF-2026"))
+        mockMvc.perform(get("/api/events/{eventCode}/tickets/paid", "CMF-2026").with(user(laura())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(1))
@@ -243,6 +262,59 @@ class EventControllerTest {
                 .andExpect(jsonPath("$[0].status").value("PAID"));
 
         verify(ticketService).findPaidTicketsByEvent("CMF-2026");
+    }
+
+    // ---------- reglas de acceso (Fase 4) ----------
+
+    @Test
+    @DisplayName("T-SEC-002: un anonimo no puede crear eventos (401)")
+    void anonimoNoPuedeCrearEventos() throws Exception {
+        // ACT + ASSERT
+        mockMvc.perform(post("/api/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EVENTO_VALIDO_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"));
+
+        verify(eventService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("T-SEC-003: un USER no puede crear eventos (403) y el Service no se invoca")
+    void userNoPuedeCrearEventos() throws Exception {
+        // ACT + ASSERT
+        mockMvc.perform(post("/api/events").with(user(andrea()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EVENTO_VALIDO_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("No tiene permisos para realizar esta operación"));
+
+        verify(eventService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("UC-SEC-08: un USER no puede publicar eventos (403)")
+    void userNoPuedePublicar() throws Exception {
+        // ACT + ASSERT
+        mockMvc.perform(patch("/api/events/{eventCode}/publish", "CMF-2026").with(user(andrea())))
+                .andExpect(status().isForbidden());
+
+        verify(eventService, never()).publish(any());
+    }
+
+    @Test
+    @DisplayName("FR-SEC-TKT-04: un USER no puede ver los tickets pagados de un evento (403)")
+    void userNoPuedeVerTicketsPagados() throws Exception {
+        // ACT + ASSERT
+        mockMvc.perform(get("/api/events/{eventCode}/tickets/paid", "CMF-2026").with(user(andrea())))
+                .andExpect(status().isForbidden());
+
+        verify(ticketService, never()).findPaidTicketsByEvent(any());
     }
 
     // ---------- datos de apoyo ----------
