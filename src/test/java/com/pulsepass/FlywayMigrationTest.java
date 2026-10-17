@@ -25,14 +25,14 @@ class FlywayMigrationTest extends PersistenceTestSupport {
     private String ddlAuto;
 
     @Test
-    void flywayAplicaV1V2yV3DesdeUnaBaseVacia() {
+    void flywayAplicaV1aV4DesdeUnaBaseVacia() {
         MigrationInfo[] aplicadas = flyway.info().applied();
 
         List<String> versiones = Arrays.stream(aplicadas)
                 .map(migracion -> migracion.getVersion().getVersion())
                 .toList();
 
-        assertThat(versiones).containsExactly("1", "2", "3");
+        assertThat(versiones).containsExactly("1", "2", "3", "4");
         assertThat(aplicadas).allMatch(migracion -> migracion.getState() == MigrationState.SUCCESS);
         assertThat(flyway.info().pending()).isEmpty();
     }

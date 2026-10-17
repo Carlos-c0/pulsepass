@@ -1,12 +1,13 @@
 # PulsePass
 
-Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene tres capas:
+Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene cuatro capas:
 
 - **Persistencia:** modelo relacional versionado con Flyway, entidades JPA, repositories Spring Data y pruebas de integración contra PostgreSQL real con Testcontainers.
 - **Servicios:** reglas de negocio, transacciones, DTOs, mapeo con MapStruct, excepciones de dominio y pruebas unitarias con Mockito.
 - **Controladores:** API REST con Spring MVC, validación de requests con Bean Validation, manejo centralizado de errores y pruebas de contrato HTTP con MockMvc.
+- **Seguridad:** autenticación stateless con JWT Bearer, contraseñas con BCrypt, roles `USER`, `STAFF` y `ADMIN`, y control de propiedad de los recursos.
 
-La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD_PulsePass_Capa_Servicios` (servicios) y `PRD_PulsePass_Capa_Controladores_v2` (controladores). Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `CTRL-*`, `TEST-*`) son los de esos documentos.
+La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD_PulsePass_Capa_Servicios` (servicios) `PRD_PulsePass_Capa_Controladores_v2` (controladores) y `PRD_PulsePass_Capa_Seguridad_Spring_Security_JJWT` (seguridad). Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `CTRL-*`, `TEST-*`, `SEC-*`, `T-SEC-*`) son los de esos documentos.
 
 ## Tecnologías
 
@@ -19,7 +20,8 @@ La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD
 | Migraciones | Flyway (único responsable del esquema) |
 | Mapeo Entity → DTO | MapStruct |
 | API REST | Spring MVC, Bean Validation |
-| Pruebas | JUnit 5, AssertJ, Mockito, MockMvc, Testcontainers |
+| Seguridad | Spring Security, JWT con JJWT 0.13 (HS256), BCrypt |
+| Pruebas | JUnit 5, AssertJ, Mockito, MockMvc, Spring Security Test, Testcontainers |
 | Build | Maven (`./mvnw`) |
 
 ## Requisitos previos
@@ -183,30 +185,32 @@ La compra es atómica: validar usuario, evento, edad y capacidad, calcular el pr
 
 ## API REST
 
-Los controllers solo traducen HTTP a llamadas de Service y el resultado a HTTP: no tienen reglas de negocio, no usan repositories y solo retornan DTOs (CTRL-001 a 004). Cada método de los cinco Services tiene un endpoint: 20 operaciones en total.
+Los controllers solo traducen HTTP a llamadas de Service y el resultado a HTTP: no tienen reglas de negocio, no usan repositories y solo retornan DTOs (CTRL-001 a 004). Cada método de los cinco Services tiene un endpoint (20 operaciones), más dos de autenticación. La columna **Acceso** es la regla de `SecurityConfig`; la propiedad de cada recurso se valida además en los Services (ver [Seguridad](#seguridad)).
 
-| Método | Endpoint | Service | Éxito |
-|---|---|---|---|
-| GET | `/api/venues/{code}` | `VenueService.findByCode` | 200 |
-| GET | `/api/venues/active` | `VenueService.findActiveVenues` | 200 |
-| POST | `/api/events` | `EventService.create` | 201 |
-| GET | `/api/events/{eventCode}` | `EventService.findByCode` | 200 |
-| GET | `/api/events/published` | `EventService.findPublishedEvents` | 200 |
-| PATCH | `/api/events/{eventCode}/publish` | `EventService.publish` | 200 |
-| POST | `/api/events/{eventCode}/artists/{artistId}` | `EventService.addArtist` | 200 |
-| GET | `/api/events/by-artist?stageName=...` | `EventService.findByArtist` | 200 |
-| GET | `/api/artists/{id}` | `ArtistService.findById` | 200 |
-| GET | `/api/artists/by-stage-name?stageName=...` | `ArtistService.findByStageName` | 200 |
-| GET | `/api/artists/active` | `ArtistService.findActiveArtists` | 200 |
-| POST | `/api/users` | `UserService.register` | 201 |
-| GET | `/api/users/by-email?email=...` | `UserService.findByEmail` | 200 |
-| GET | `/api/users/by-username?username=...` | `UserService.findByUsername` | 200 |
-| POST | `/api/tickets` | `TicketService.purchase` | 201 |
-| GET | `/api/tickets/{ticketCode}` | `TicketService.findByCode` | 200 |
-| GET | `/api/tickets/by-user?email=...` | `TicketService.findByUserEmail` | 200 |
-| GET | `/api/events/{eventCode}/tickets/paid` | `TicketService.findPaidTicketsByEvent` | 200 |
-| PATCH | `/api/tickets/{ticketCode}/cancel` | `TicketService.cancel` | 200 |
-| PATCH | `/api/tickets/{ticketCode}/use` | `TicketService.markAsUsed` | 200 |
+| Método | Endpoint | Service | Éxito | Acceso |
+|---|---|---|---|---|
+| POST | `/api/auth/login` | `AuthService.login` | 200 | Público |
+| GET | `/api/auth/me` | `AuthService.currentUser` | 200 | Autenticado |
+| GET | `/api/venues/{code}` | `VenueService.findByCode` | 200 | Público |
+| GET | `/api/venues/active` | `VenueService.findActiveVenues` | 200 | Público |
+| POST | `/api/events` | `EventService.create` | 201 | ADMIN |
+| GET | `/api/events/{eventCode}` | `EventService.findByCode` | 200 | Público (borradores: STAFF o ADMIN) |
+| GET | `/api/events/published` | `EventService.findPublishedEvents` | 200 | Público |
+| PATCH | `/api/events/{eventCode}/publish` | `EventService.publish` | 200 | ADMIN |
+| POST | `/api/events/{eventCode}/artists/{artistId}` | `EventService.addArtist` | 200 | ADMIN |
+| GET | `/api/events/by-artist?stageName=...` | `EventService.findByArtist` | 200 | Público (borradores: STAFF o ADMIN) |
+| GET | `/api/artists/{id}` | `ArtistService.findById` | 200 | Público |
+| GET | `/api/artists/by-stage-name?stageName=...` | `ArtistService.findByStageName` | 200 | Público |
+| GET | `/api/artists/active` | `ArtistService.findActiveArtists` | 200 | Público |
+| POST | `/api/users` | `AuthService.register` | 201 | Público |
+| GET | `/api/users/by-email?email=...` | `UserService.findByEmail` | 200 | Propietario o ADMIN |
+| GET | `/api/users/by-username?username=...` | `UserService.findByUsername` | 200 | Propietario o ADMIN |
+| POST | `/api/tickets` | `TicketService.purchase` | 201 | USER, solo con su propio email |
+| GET | `/api/tickets/{ticketCode}` | `TicketService.findByCode` | 200 | Propietario, STAFF o ADMIN |
+| GET | `/api/tickets/by-user?email=...` | `TicketService.findByUserEmail` | 200 | Propietario o ADMIN |
+| GET | `/api/events/{eventCode}/tickets/paid` | `TicketService.findPaidTicketsByEvent` | 200 | STAFF o ADMIN |
+| PATCH | `/api/tickets/{ticketCode}/cancel` | `TicketService.cancel` | 200 | Propietario o ADMIN |
+| PATCH | `/api/tickets/{ticketCode}/use` | `TicketService.markAsUsed` | 200 | STAFF o ADMIN |
 
 `GET /api/events/{eventCode}/tickets/paid` vive en `EventController` porque su ruta cuelga de un evento; por dentro llama a `TicketService`.
 
@@ -241,7 +245,80 @@ Todos los errores salen de `GlobalExceptionHandler` (`@RestControllerAdvice`) co
 | `ResourceNotFoundException` o una ruta que no existe | 404 | El mensaje del Service |
 | Método HTTP no soportado en una ruta existente | 405 | `Method not allowed: ...` |
 | `DuplicateResourceException` o `BusinessRuleException` | 409 | El mensaje del Service |
+| Sin token, o con un token inválido, vencido o de un usuario inactivo | 401 | `Authentication required`, `Invalid or expired token` o `Invalid credentials` en el login |
+| Rol insuficiente o recurso de otro usuario | 403 | `No tiene permisos para realizar esta operación` |
 | Cualquier otra excepción | 500 | `Unexpected error`, sin detalles internos (NFR-CTRL-007); el detalle queda en el log |
+
+## Seguridad
+
+La API es stateless: no hay sesión ni cookies. Cada request protegido lleva `Authorization: Bearer <token>`. El token es un JWT firmado con HS256 que dura 15 minutos y solo guarda el id del usuario (`sub`), el emisor (`iss`), las fechas (`iat`, `exp`) y un id único (`jti`). Los roles y el estado del usuario se leen de la base de datos en cada request, así que desactivar un usuario le quita el acceso aunque su token siga vigente.
+
+### Configuración
+
+La clave del JWT nunca se escribe en el repositorio. Se lee de variables de entorno; `.env.example` muestra cuáles son:
+
+| Variable | Obligatoria | Por defecto |
+|---|---|---|
+| `PULSEPASS_JWT_SECRET_BASE64` | Sí. Base64 de al menos 32 bytes aleatorios | — |
+| `PULSEPASS_JWT_ISSUER` | No | `pulsepass-api` |
+| `PULSEPASS_JWT_ACCESS_TOKEN_TTL` | No | `PT15M` |
+
+Sin la clave, o con una de menos de 32 bytes, la aplicación no arranca. Para generar una:
+
+```bash
+openssl rand -base64 32
+```
+
+Las pruebas usan una clave ficticia propia, definida en `src/test/resources/config/application.properties`; no sirve para ningún otro entorno.
+
+### Registro, login y usuario actual
+
+`POST /api/users` crea el usuario, su perfil y su credencial en una sola transacción. La contraseña (12 a 72 caracteres) se guarda solo como hash BCrypt en `user_credentials` y el rol siempre es `USER`: el cliente no puede elegirlo. El registro no entrega un token; después hay que iniciar sesión.
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"identifier":"andrea","password":"UnaFraseSeguraLarga2026!"}'
+```
+
+```json
+{ "accessToken": "eyJhbGciOiJIUzI1NiJ9...", "tokenType": "Bearer", "expiresIn": 900 }
+```
+
+`identifier` acepta el username o el email. Si el usuario no existe, la contraseña es incorrecta o la cuenta está inactiva, la respuesta es la misma: 401 `Invalid credentials`.
+
+```bash
+curl http://localhost:8080/api/auth/me -H "Authorization: Bearer <token>"
+```
+
+### Roles y propiedad
+
+| Rol | Puede |
+|---|---|
+| `USER` | Comprar tickets para sí mismo y consultar o cancelar sus tickets y sus datos |
+| `STAFF` | Consultar cualquier ticket, ver los tickets pagados de un evento, marcar tickets como usados y ver eventos en borrador |
+| `ADMIN` | Lo mismo que `STAFF`, más crear y publicar eventos, asociar artistas, consultar cualquier usuario y cancelar cualquier ticket. No compra tickets: comprar es solo de `USER` |
+
+`SecurityConfig` decide quién puede llamar cada endpoint según su rol. La propiedad se valida en los Services con `AuthorizationService`, comparando el id del dueño en la base de datos con el id del usuario autenticado, nunca con un id o un email enviado por el cliente. Pedir el recurso de otro usuario responde 403. Un evento en borrador responde 404 a un anónimo o a un `USER`, para no revelar que existe.
+
+Los usuarios creados antes de esta fase no tienen credencial, así que no pueden iniciar sesión hasta que se les cree una.
+
+### Crear un STAFF o un ADMIN
+
+El registro público solo crea `USER`. Para dar otro rol, primero se registra la cuenta y luego se agrega el rol en la base de datos:
+
+```sql
+INSERT INTO user_roles (user_id, role)
+SELECT id, 'ADMIN' FROM users WHERE username = 'admin';
+```
+
+Cambiar `'ADMIN'` por `'STAFF'` para un empleado de taquilla. El cambio aplica desde el siguiente request, porque los roles se leen de la base de datos.
+
+### Limitaciones conocidas
+
+- No hay refresh token ni logout: el token vale hasta que vence (15 minutos).
+- `STAFF` tiene acceso a todos los eventos; no hay asignación de staff por evento.
+- No hay límite de intentos de login.
 
 ## Pruebas
 
@@ -263,17 +340,25 @@ Para ejecutar solo las pruebas de controladores, también sin Docker:
 ./mvnw test "-Dtest=*ControllerTest"
 ```
 
+Para ejecutar solo las pruebas de seguridad que no necesitan Docker:
+
+```bash
+./mvnw test "-Dtest=Jwt*Test,CustomUserDetailsServiceTest,Auth*Test"
+```
+
 Las clases terminan en `Test` (no en `IT`) para que `mvn test` las ejecute con Surefire. Las pruebas que escriben datos corren en una transacción que se revierte al terminar, y las que verifican lo que quedó en la base llaman a `flushAndClear()` antes de consultar, para que los datos se lean de PostgreSQL y no de la caché de Hibernate.
 
 | Clase | Cubre |
 |---|---|
-| `FlywayMigrationTest` | QT-001, QT-002, V2 con los cinco artistas |
+| `FlywayMigrationTest` | QT-001, QT-002, V2 con los cinco artistas, V1 a V4 aplicadas |
 | `VenuePersistenceTest` | FR-VEN-001 a 004, AC-001, QT-003, QT-009 |
 | `EventRepositoryTest` | FR-EVT-001 a 006, AC-002, AC-006 |
 | `EventArtistTest` | FR-ART-001 a 003, AC-003, QT-005 |
 | `EventSearchTest` | FR-SRC-001 a 003, FR-ART-004, AC-007, QT-008 |
 | `UserProfileTest` | FR-USR-001 a 004, AC-004, QT-004 |
 | `TicketRepositoryTest` | FR-TKT-001 a 008, FR-SRC-004, AC-005, AC-008, QT-006 a QT-008 |
+| `UserCredentialPersistenceTest` | Migración V4: credencial con el id del usuario, roles y constraints |
+| `SecurityIntegrationTest` | T-SEC-001, 004, 005, 008, 015: registro, login, `/me` y propiedad con la base real |
 | `PulsepassApplicationTests` | El contexto de Spring arranca |
 
 Pruebas unitarias de la capa de servicios. Usan `@ExtendWith(MockitoExtension.class)` con repositories y mappers simulados; no levantan Spring ni PostgreSQL (NFR-001) y siguen ARRANGE / ACT / ASSERT.
@@ -284,18 +369,24 @@ Pruebas unitarias de la capa de servicios. Usan `@ExtendWith(MockitoExtension.cl
 | `ArtistServiceImplTest` | FR-SVC-009, BR-ARTIST-001, 002 |
 | `EventServiceImplTest` | TEST-EVENT-001 a 008, BR-EVENT-001 a 011, FR-SVC-005, 007, 008 |
 | `UserServiceImplTest` | TEST-USER-001 a 004, FR-SVC-011, 012 |
-| `TicketServiceImplTest` | TEST-TICKET-001 a 012, BR-TICKET-005, 012, FR-SVC-014 a 016 |
+| `TicketServiceImplTest` | TEST-TICKET-001 a 012, BR-TICKET-005, 012, FR-SVC-014 a 016, propiedad de tickets |
 | `DefaultTicketPricingStrategyTest` | BR-TICKET-009 y la estrategia de precios |
+| `AuthServiceImplTest` | Registro con hash y rol USER, login, credenciales inválidas |
+| `AuthorizationServiceImplTest` | Propietario, roles y acceso sin identidad |
+| `JwtServiceTest` | Claims del token, vencimiento, firma, emisor, algoritmo y clave |
+| `JwtAuthenticationFilterTest` | Bearer válido, inválido, repetido o de un usuario inactivo |
+| `CustomUserDetailsServiceTest` | Carga por username, email o id; usuario sin credencial |
 
-Pruebas de contrato HTTP. Usan `@WebMvcTest` (solo levanta la capa web), `MockMvc` y los Services reemplazados con `@MockitoBean`; no levantan PostgreSQL. Cada prueba valida el status, el `Content-Type`, los campos del JSON con `jsonPath` y la llamada al Service con `verify`. En los requests inválidos, `verify(..., never())` confirma que el Service nunca se invocó.
+Pruebas de contrato HTTP. Usan `@WebMvcTest` (solo levanta la capa web), `MockMvc` y los Services reemplazados con `@MockitoBean`; no levantan PostgreSQL. Importan `SecurityConfig` para probar las mismas reglas de acceso que en producción, y la identidad llega con `.with(user(...))` de Spring Security Test. Cada prueba valida el status, el `Content-Type`, los campos del JSON con `jsonPath` y la llamada al Service con `verify`. En los requests inválidos, `verify(..., never())` confirma que el Service nunca se invocó.
 
 | Clase | Cubre |
 |---|---|
 | `VenueControllerTest` | TEST-CTRL-VEN-001 a 003, error 500 sin detalles internos |
 | `ArtistControllerTest` | TEST-CTRL-ART-001 a 004, ID no numérico → 400 |
-| `EventControllerTest` | TEST-CTRL-EVT-001 a 009, TEST-CTRL-TKT-007 |
-| `UserControllerTest` | TEST-CTRL-USR-001 a 005, parámetro faltante → 400 |
-| `TicketControllerTest` | TEST-CTRL-TKT-001 a 006 y 008 a 011, JSON mal formado → 400 |
+| `EventControllerTest` | TEST-CTRL-EVT-001 a 009, TEST-CTRL-TKT-007, T-SEC-002, 003 |
+| `UserControllerTest` | TEST-CTRL-USR-001 a 005, parámetro faltante → 400, T-SEC-015 |
+| `AuthControllerTest` | T-SEC-005, 006, 019, login inválido → 400, `/me` |
+| `TicketControllerTest` | TEST-CTRL-TKT-001 a 006 y 008 a 011, JSON mal formado → 400, T-SEC-007 a 013 y 016 |
 
 Algunas pruebas usan SQL nativo únicamente para **verificar** constraints de PostgreSQL (por ejemplo, forzar un estado fuera del catálogo o un par evento-artista repetido). Los requisitos de consulta se resuelven solo con Query Methods y JPQL.
 
@@ -303,7 +394,7 @@ Algunas pruebas usan SQL nativo únicamente para **verificar** constraints de Po
 
 Al arrancar, Flyway aplica las migraciones, Hibernate valida el esquema y la API queda disponible en `http://localhost:8080`.
 
-Con Testcontainers, sin instalar nada más:
+Con Testcontainers, sin instalar nada más (usa la clave de prueba):
 
 ```bash
 ./mvnw spring-boot:test-run
@@ -312,7 +403,8 @@ Con Testcontainers, sin instalar nada más:
 Contra un PostgreSQL propio:
 
 ```bash
-docker run --name pulsepass-db -e POSTGRES_DB=pulsepass -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:17
+docker compose up -d
+export PULSEPASS_JWT_SECRET_BASE64=$(openssl rand -base64 32)
 ./mvnw spring-boot:run
 ```
 

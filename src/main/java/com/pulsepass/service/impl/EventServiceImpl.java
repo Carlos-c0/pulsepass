@@ -3,6 +3,7 @@ package com.pulsepass.service.impl;
 import com.pulsepass.domain.Artist;
 import com.pulsepass.domain.Event;
 import com.pulsepass.domain.EventStatus;
+import com.pulsepass.domain.Role;
 import com.pulsepass.domain.Venue;
 import com.pulsepass.dto.request.CreateEventRequest;
 import com.pulsepass.dto.response.EventResponse;
@@ -14,6 +15,7 @@ import com.pulsepass.mapper.EventMapper;
 import com.pulsepass.repository.ArtistRepository;
 import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.VenueRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.EventService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,24 +23,33 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
 public class EventServiceImpl implements EventService {
 
+    // Estados que cualquiera puede ver: el evento ya paso por la publicacion.
+    // DRAFT y CANCELLED solo los ven STAFF y ADMIN (FR-SEC-EVT-02 y 06)
+    private static final Set<EventStatus> PUBLIC_STATUSES =
+            Set.of(EventStatus.PUBLISHED, EventStatus.SOLD_OUT, EventStatus.FINISHED);
+
     private final EventRepository eventRepository;
     private final VenueRepository venueRepository;
     private final ArtistRepository artistRepository;
     private final EventMapper eventMapper;
+    private final AuthorizationService authorizationService;
 
     public EventServiceImpl(EventRepository eventRepository,
                             VenueRepository venueRepository,
                             ArtistRepository artistRepository,
-                            EventMapper eventMapper) {
+                            EventMapper eventMapper,
+                            AuthorizationService authorizationService) {
         this.eventRepository = eventRepository;
         this.venueRepository = venueRepository;
         this.artistRepository = artistRepository;
         this.eventMapper = eventMapper;
+        this.authorizationService = authorizationService;
     }
 
     @Override
@@ -79,7 +90,14 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventResponse findByCode(String eventCode) {
-        return eventMapper.toResponse(findEvent(eventCode));
+        Event event = findEvent(eventCode);
+
+        // Un borrador se responde como inexistente para no revelar que existe (T-SEC-017)
+        if (!isVisibleToCurrentUser(event)) {
+            throw new ResourceNotFoundException("Event not found: " + eventCode);
+        }
+
+        return eventMapper.toResponse(event);
     }
 
     @Override
@@ -152,8 +170,14 @@ public class EventServiceImpl implements EventService {
 
         return eventRepository.findByArtistStageName(artist.getStageName())
                 .stream()
+                .filter(this::isVisibleToCurrentUser)
                 .map(eventMapper::toSummary)
                 .toList();
+    }
+
+    private boolean isVisibleToCurrentUser(Event event) {
+        return PUBLIC_STATUSES.contains(event.getStatus())
+                || authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN);
     }
 
     private Event findEvent(String eventCode) {
