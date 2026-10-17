@@ -3,6 +3,7 @@ package com.pulsepass.service.impl;
 import com.pulsepass.domain.Event;
 import com.pulsepass.domain.EventCategory;
 import com.pulsepass.domain.EventStatus;
+import com.pulsepass.domain.Role;
 import com.pulsepass.domain.Ticket;
 import com.pulsepass.domain.TicketStatus;
 import com.pulsepass.domain.TicketType;
@@ -18,6 +19,7 @@ import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.TicketRepository;
 import com.pulsepass.repository.UserProfileRepository;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.TicketPricingStrategy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -39,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,6 +73,9 @@ class TicketServiceImplTest {
 
     @Mock
     private TicketMapper ticketMapper;
+
+    @Mock
+    private AuthorizationService authorizationService;
 
     @InjectMocks
     private TicketServiceImpl ticketService;
@@ -359,7 +366,7 @@ class TicketServiceImplTest {
     void ticketsDeUsuarioSeRetornanComoDto() {
         // ARRANGE
         Ticket ticket = ticket(TicketStatus.PAID, FECHA_EVENTO);
-        when(userRepository.existsByEmailIgnoreCase("andrea@email.com")).thenReturn(true);
+        existeUsuario(usuario(1L, "andrea"));
         when(ticketRepository.findByUser_EmailIgnoreCaseOrderByPurchaseDateDesc("andrea@email.com"))
                 .thenReturn(List.of(ticket));
         when(ticketMapper.toResponse(ticket)).thenReturn(respuestaDe(ticket));
@@ -370,6 +377,7 @@ class TicketServiceImplTest {
         // ASSERT
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).ticketCode()).isEqualTo(TICKET_CODE);
+        verify(authorizationService).requireOwnerOrAnyRole(1L, Role.ADMIN);
     }
 
     @Test
@@ -389,6 +397,73 @@ class TicketServiceImplTest {
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).eventName()).isEqualTo("Caribbean Music Fest 2026");
         verify(ticketRepository).findByEvent_EventCodeAndStatus(eq(EVENT_CODE), eq(TicketStatus.PAID));
+    }
+
+    // ---------- propiedad (anti-IDOR) ----------
+
+    @Test
+    @DisplayName("FR-SEC-TKT-01: comprar con el email de otro usuario no guarda nada")
+    void comprarConEmailAjenoLanzaAccessDenied() {
+        // ARRANGE
+        User carlos = usuario(2L, "carlos");
+        existeUsuario(carlos);
+        doThrow(new AccessDeniedException("No es el propietario"))
+                .when(authorizationService).requireOwnerOrAnyRole(2L);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> ticketService.purchase(compra("carlos@email.com", TicketType.VIP)))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("FR-SEC-TKT-02: consultar un ticket ajeno lanza AccessDeniedException")
+    void consultarTicketAjenoLanzaAccessDenied() {
+        // ARRANGE
+        Ticket ticket = ticket(TicketStatus.PAID, FECHA_EVENTO);
+        when(ticketRepository.findByTicketCode(TICKET_CODE)).thenReturn(Optional.of(ticket));
+        doThrow(new AccessDeniedException("No es el propietario"))
+                .when(authorizationService).requireOwnerOrAnyRole(1L, Role.STAFF, Role.ADMIN);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> ticketService.findByCode(TICKET_CODE))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(ticketMapper, never()).toResponse(any());
+    }
+
+    @Test
+    @DisplayName("FR-SEC-TKT-02: el propietario, STAFF o ADMIN pueden consultar el ticket")
+    void consultarTicketValidaPropietarioStaffOAdmin() {
+        // ARRANGE
+        Ticket ticket = ticket(TicketStatus.PAID, FECHA_EVENTO);
+        when(ticketRepository.findByTicketCode(TICKET_CODE)).thenReturn(Optional.of(ticket));
+        when(ticketMapper.toResponse(ticket)).thenReturn(respuestaDe(ticket));
+
+        // ACT
+        TicketResponse resultado = ticketService.findByCode(TICKET_CODE);
+
+        // ASSERT
+        assertThat(resultado.ticketCode()).isEqualTo(TICKET_CODE);
+        verify(authorizationService).requireOwnerOrAnyRole(1L, Role.STAFF, Role.ADMIN);
+    }
+
+    @Test
+    @DisplayName("FR-SEC-TKT-05: cancelar un ticket ajeno no cambia su estado")
+    void cancelarTicketAjenoLanzaAccessDenied() {
+        // ARRANGE
+        Ticket ticket = ticket(TicketStatus.PAID, FECHA_EVENTO);
+        when(ticketRepository.findByTicketCode(TICKET_CODE)).thenReturn(Optional.of(ticket));
+        doThrow(new AccessDeniedException("No es el propietario"))
+                .when(authorizationService).requireOwnerOrAnyRole(1L, Role.ADMIN);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> ticketService.cancel(TICKET_CODE))
+                .isInstanceOf(AccessDeniedException.class);
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.PAID);
+        verify(ticketRepository, never()).save(any());
     }
 
     // ---------- stubs reutilizables ----------

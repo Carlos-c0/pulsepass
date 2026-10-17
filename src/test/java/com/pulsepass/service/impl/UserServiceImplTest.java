@@ -1,5 +1,6 @@
 package com.pulsepass.service.impl;
 
+import com.pulsepass.domain.Role;
 import com.pulsepass.domain.User;
 import com.pulsepass.domain.UserProfile;
 import com.pulsepass.dto.request.RegisterUserRequest;
@@ -10,6 +11,7 @@ import com.pulsepass.exception.ResourceNotFoundException;
 import com.pulsepass.mapper.UserMapper;
 import com.pulsepass.repository.UserProfileRepository;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -25,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +46,9 @@ class UserServiceImplTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private AuthorizationService authorizationService;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -150,6 +157,7 @@ class UserServiceImplTest {
         assertThat(resultado.email()).isEqualTo("andrea@email.com");
         assertThat(resultado.firstName()).isEqualTo("Andrea");
         assertThat(resultado.birthDate()).isEqualTo(FECHA_NACIMIENTO);
+        verify(authorizationService).requireOwnerOrAnyRole(1L, Role.ADMIN);
     }
 
     @Test
@@ -194,6 +202,38 @@ class UserServiceImplTest {
         assertThatThrownBy(() -> userService.findByUsername("nadie"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("User not found: nadie");
+    }
+
+    @Test
+    @DisplayName("FR-SEC-USR-02: consultar los datos de otro usuario lanza AccessDeniedException")
+    void consultarOtroUsuarioLanzaAccessDenied() {
+        // ARRANGE
+        User usuario = usuario(1L);
+        when(userRepository.findByEmailIgnoreCase("andrea@email.com")).thenReturn(Optional.of(usuario));
+        doThrow(new AccessDeniedException("No es el propietario"))
+                .when(authorizationService).requireOwnerOrAnyRole(1L, Role.ADMIN);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> userService.findByEmail("andrea@email.com"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(userMapper, never()).toResponse(any(), any());
+    }
+
+    @Test
+    @DisplayName("FR-SEC-USR-03: buscar a otro usuario por username lanza AccessDeniedException")
+    void consultarOtroUsuarioPorUsernameLanzaAccessDenied() {
+        // ARRANGE
+        User usuario = usuario(1L);
+        when(userRepository.findByUsername("andrea")).thenReturn(Optional.of(usuario));
+        doThrow(new AccessDeniedException("No es el propietario"))
+                .when(authorizationService).requireOwnerOrAnyRole(1L, Role.ADMIN);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> userService.findByUsername("andrea"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(userMapper, never()).toResponse(any(), any());
     }
 
     // ---------- datos de apoyo ----------
