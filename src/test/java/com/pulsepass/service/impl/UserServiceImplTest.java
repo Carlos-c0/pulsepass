@@ -201,7 +201,7 @@ class UserServiceImplTest {
     private RegisterUserRequest solicitud(LocalDate fechaNacimiento) {
         return new RegisterUserRequest(
                 "andrea", "andrea@email.com", "Andrea", "Gomez",
-                "3001234567", "Santa Marta", fechaNacimiento
+                "3001234567", "Santa Marta", fechaNacimiento, "UnaFraseSeguraLarga2026!"
         );
     }
 

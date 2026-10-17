@@ -32,5 +32,17 @@ public record RegisterUserRequest(
         String city,
 
         @NotNull(message = "Birth date is required")
-        LocalDate birthDate
-) {}
+        LocalDate birthDate,
+
+        // BCrypt solo usa los primeros 72 bytes; por eso el maximo
+        @NotBlank(message = "Password is required")
+        @Size(min = 12, max = 72, message = "Password must have between 12 and 72 characters")
+        String password
+) {
+
+
+        @Override
+        public String toString() {
+                return "RegisterUserRequest[username=" + username + ", email=" + email + "]";
+        }
+}
