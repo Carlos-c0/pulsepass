@@ -16,12 +16,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
 import static com.pulsepass.support.TestPrincipals.andrea;
+import static com.pulsepass.support.TestPrincipals.carlos;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -199,6 +201,21 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.error").value("Unauthorized"));
 
         verify(userService, never()).findByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("T-SEC-015: un USER no puede consultar los datos de otro usuario (403)")
+    void consultarOtroUsuarioRetorna403() throws Exception {
+        // ARRANGE: carlos pide los datos de andrea; el Service lo rechaza por propiedad
+        when(userService.findByEmail("andrea@email.com"))
+                .thenThrow(new AccessDeniedException("User 2 cannot access a resource of another user"));
+
+        // ACT + ASSERT
+        mockMvc.perform(get("/api/users/by-email").with(user(carlos())).param("email", "andrea@email.com"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").value("No tiene permisos para realizar esta operación"))
+                .andExpect(jsonPath("$.email").doesNotExist());
     }
 
     private UserResponse respuestaAndrea() {

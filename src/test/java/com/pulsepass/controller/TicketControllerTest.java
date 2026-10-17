@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -360,6 +361,40 @@ class TicketControllerTest {
                         .header("Authorization", "Bearer token-valido"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ticketCode").value("TCK-0001"));
+    }
+
+    // ---------- propiedad de los recursos (Fase 5) ----------
+
+    @Test
+    @DisplayName("T-SEC-009: un USER no puede consultar el ticket de otro usuario (403)")
+    void ticketAjenoRetorna403() throws Exception {
+        // ARRANGE: el Service compara el propietario del ticket con el usuario autenticado
+        when(ticketService.findByCode("TCK-0001"))
+                .thenThrow(new AccessDeniedException("User 2 cannot access a resource of another user"));
+
+        // ACT + ASSERT
+        mockMvc.perform(get("/api/tickets/{ticketCode}", "TCK-0001").with(user(carlos())))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("No tiene permisos para realizar esta operación"))
+                .andExpect(jsonPath("$.ticketCode").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("T-SEC-010: un USER no puede comprar con el email de otro usuario (403)")
+    void compraConEmailAjenoRetorna403() throws Exception {
+        // ARRANGE: carlos envia el email de andrea
+        when(ticketService.purchase(any(PurchaseTicketRequest.class)))
+                .thenThrow(new AccessDeniedException("User 2 cannot access a resource of another user"));
+
+        // ACT + ASSERT
+        mockMvc.perform(post("/api/tickets").with(user(carlos()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(COMPRA_VALIDA_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("No tiene permisos para realizar esta operación"));
     }
 
     private TicketResponse ticket(TicketStatus status) {
