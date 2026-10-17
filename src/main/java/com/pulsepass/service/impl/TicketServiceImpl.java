@@ -2,6 +2,7 @@ package com.pulsepass.service.impl;
 
 import com.pulsepass.domain.Event;
 import com.pulsepass.domain.EventStatus;
+import com.pulsepass.domain.Role;
 import com.pulsepass.domain.Ticket;
 import com.pulsepass.domain.TicketStatus;
 import com.pulsepass.domain.TicketType;
@@ -16,6 +17,7 @@ import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.TicketRepository;
 import com.pulsepass.repository.UserProfileRepository;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.TicketPricingStrategy;
 import com.pulsepass.service.TicketService;
 import org.springframework.stereotype.Service;
@@ -38,27 +40,37 @@ public class TicketServiceImpl implements TicketService {
     private final EventRepository eventRepository;
     private final TicketPricingStrategy ticketPricingStrategy;
     private final TicketMapper ticketMapper;
+    private final AuthorizationService authorizationService;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
                              UserRepository userRepository,
                              UserProfileRepository userProfileRepository,
                              EventRepository eventRepository,
                              TicketPricingStrategy ticketPricingStrategy,
-                             TicketMapper ticketMapper) {
+                             TicketMapper ticketMapper,
+                             AuthorizationService authorizationService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.eventRepository = eventRepository;
         this.ticketPricingStrategy = ticketPricingStrategy;
         this.ticketMapper = ticketMapper;
+        this.authorizationService = authorizationService;
     }
 
     @Override
     @Transactional
     public TicketResponse purchase(PurchaseTicketRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(request.userEmail()).orElse(null);
+
+        // FR-SEC-TKT-01: el userEmail del request debe ser el del usuario autenticado.
+        // Se revisa antes de responder 404, para no revelar que otro email existe
+        authorizationService.requireOwnerOrAnyRole(user == null ? null : user.getId());
+
         // BR-TICKET-001: el usuario debe existir
-        User user = userRepository.findByEmailIgnoreCase(request.userEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.userEmail()));
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found: " + request.userEmail());
+        }
 
         // BR-TICKET-002: el usuario debe estar activo
         if (!Boolean.TRUE.equals(user.getActive())) {
@@ -115,12 +127,22 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public TicketResponse findByCode(String ticketCode) {
-        return ticketMapper.toResponse(findTicket(ticketCode));
+        Ticket ticket = findTicket(ticketCode);
+
+        // FR-SEC-TKT-02: el propietario se lee de la base de datos; el ticketCode no basta
+        authorizationService.requireOwnerOrAnyRole(ticket.getUser().getId(), Role.STAFF, Role.ADMIN);
+
+        return ticketMapper.toResponse(ticket);
     }
 
     @Override
     public List<TicketResponse> findByUserEmail(String email) {
-        if (!userRepository.existsByEmailIgnoreCase(email)) {
+        User owner = userRepository.findByEmailIgnoreCase(email).orElse(null);
+
+        // FR-SEC-TKT-03: solo el propietario (comparado por id) o un ADMIN
+        authorizationService.requireOwnerOrAnyRole(owner == null ? null : owner.getId(), Role.ADMIN);
+
+        if (owner == null) {
             throw new ResourceNotFoundException("User not found: " + email);
         }
 
@@ -146,6 +168,9 @@ public class TicketServiceImpl implements TicketService {
     @Transactional
     public TicketResponse cancel(String ticketCode) {
         Ticket ticket = findTicket(ticketCode);
+
+        // FR-SEC-TKT-05: la propiedad se valida antes de cambiar el estado
+        authorizationService.requireOwnerOrAnyRole(ticket.getUser().getId(), Role.ADMIN);
 
         // BR-TICKET-010 y BR-TICKET-011: solo se cancela un ticket PAID
         if (ticket.getStatus() != TicketStatus.PAID) {
