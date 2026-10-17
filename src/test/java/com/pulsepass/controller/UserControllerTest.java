@@ -8,6 +8,7 @@ import com.pulsepass.security.JwtService;
 import com.pulsepass.security.RestAccessDeniedHandler;
 import com.pulsepass.security.RestAuthenticationEntryPoint;
 import com.pulsepass.security.SecurityConfig;
+import com.pulsepass.service.AuthService;
 import com.pulsepass.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,8 @@ class UserControllerTest {
               "lastName": "Gomez",
               "phone": "3001234567",
               "city": "Santa Marta",
-              "birthDate": "2005-03-10"
+              "birthDate": "2005-03-10",
+              "password": "UnaFraseSeguraLarga2026!"
             }
             """;
 
@@ -56,6 +58,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private AuthService authService;
 
     // Dependencias del filtro JWT de SecurityConfig. En estas pruebas la identidad
     // llega con .with(user(...)), asi que el filtro solo actua cuando hay un encabezado Bearer.
@@ -66,10 +71,10 @@ class UserControllerTest {
     private CustomUserDetailsService userDetailsService;
 
     @Test
-    @DisplayName("TEST-CTRL-USR-001: registrar usuario valido retorna 201")
+    @DisplayName("TEST-CTRL-USR-001 / UC-SEC-01: registrar usuario valido retorna 201 sin exponer la contrasena")
     void registrarValidoRetorna201() throws Exception {
         // ARRANGE
-        when(userService.register(any(RegisterUserRequest.class))).thenReturn(respuestaAndrea());
+        when(authService.register(any(RegisterUserRequest.class))).thenReturn(respuestaAndrea());
 
         // ACT + ASSERT
         mockMvc.perform(post("/api/users")
@@ -79,10 +84,13 @@ class UserControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.username").value("andrea"))
                 .andExpect(jsonPath("$.active").value(true))
-                .andExpect(jsonPath("$.city").value("Santa Marta"));
+                .andExpect(jsonPath("$.city").value("Santa Marta"))
+                .andExpect(jsonPath("$.password").doesNotExist());
 
-        verify(userService).register(new RegisterUserRequest(
-                "andrea", "andrea@email.com", "Andrea", "Gomez", "3001234567", "Santa Marta", FECHA_NACIMIENTO
+        // El registro ahora pasa por AuthService, que guarda tambien la credencial
+        verify(authService).register(new RegisterUserRequest(
+                "andrea", "andrea@email.com", "Andrea", "Gomez", "3001234567", "Santa Marta", FECHA_NACIMIENTO,
+                "UnaFraseSeguraLarga2026!"
         ));
     }
 
@@ -101,14 +109,14 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("Validation failed"))
                 .andExpect(jsonPath("$.details.email").value("Email must be valid"));
 
-        verify(userService, never()).register(any());
+        verify(authService, never()).register(any());
     }
 
     @Test
     @DisplayName("TEST-CTRL-USR-003: username duplicado retorna 409")
     void usernameDuplicadoRetorna409() throws Exception {
         // ARRANGE
-        when(userService.register(any(RegisterUserRequest.class)))
+        when(authService.register(any(RegisterUserRequest.class)))
                 .thenThrow(new DuplicateResourceException("Username already exists: andrea"));
 
         // ACT + ASSERT
@@ -163,6 +171,23 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.details.email").value("Parameter is required"));
 
         verify(userService, never()).findByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("FR-SEC-AUTH-001: una contrasena de menos de 12 caracteres retorna 400")
+    void contrasenaCortaRetorna400() throws Exception {
+        // ARRANGE
+        String json = USUARIO_VALIDO_JSON.replace("UnaFraseSeguraLarga2026!", "corta");
+
+        // ACT + ASSERT
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.details.password").value("Password must have between 12 and 72 characters"));
+
+        verify(authService, never()).register(any());
     }
 
     @Test
