@@ -1,5 +1,6 @@
 package com.pulsepass.service.impl;
 
+import com.pulsepass.domain.Role;
 import com.pulsepass.domain.User;
 import com.pulsepass.domain.UserProfile;
 import com.pulsepass.dto.request.RegisterUserRequest;
@@ -10,6 +11,7 @@ import com.pulsepass.exception.ResourceNotFoundException;
 import com.pulsepass.mapper.UserMapper;
 import com.pulsepass.repository.UserProfileRepository;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +25,16 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserMapper userMapper;
+    private final AuthorizationService authorizationService;
 
     public UserServiceImpl(UserRepository userRepository,
                            UserProfileRepository userProfileRepository,
-                           UserMapper userMapper) {
+                           UserMapper userMapper,
+                           AuthorizationService authorizationService) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.userMapper = userMapper;
+        this.authorizationService = authorizationService;
     }
 
     @Override
@@ -68,17 +73,28 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse findByEmail(String email) {
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+        User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
 
+        // FR-SEC-USR-02: solo el propio usuario (comparado por id) o un ADMIN.
+        // Se revisa antes del 404 para no revelar que otro email existe
+        authorizationService.requireOwnerOrAnyRole(user == null ? null : user.getId(), Role.ADMIN);
+
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found: " + email);
+        }
         return toResponse(user);
     }
 
     @Override
     public UserResponse findByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        User user = userRepository.findByUsername(username).orElse(null);
 
+        // FR-SEC-USR-03: misma regla que la busqueda por email
+        authorizationService.requireOwnerOrAnyRole(user == null ? null : user.getId(), Role.ADMIN);
+
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found: " + username);
+        }
         return toResponse(user);
     }
 
