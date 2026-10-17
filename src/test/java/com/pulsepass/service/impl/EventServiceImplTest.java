@@ -4,6 +4,7 @@ import com.pulsepass.domain.Artist;
 import com.pulsepass.domain.Event;
 import com.pulsepass.domain.EventCategory;
 import com.pulsepass.domain.EventStatus;
+import com.pulsepass.domain.Role;
 import com.pulsepass.domain.Venue;
 import com.pulsepass.dto.request.CreateEventRequest;
 import com.pulsepass.dto.response.EventResponse;
@@ -15,6 +16,7 @@ import com.pulsepass.mapper.EventMapper;
 import com.pulsepass.repository.ArtistRepository;
 import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.VenueRepository;
+import com.pulsepass.service.AuthorizationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,6 +58,9 @@ class EventServiceImplTest {
 
     @Mock
     private EventMapper eventMapper;
+
+    @Mock
+    private AuthorizationService authorizationService;
 
     @InjectMocks
     private EventServiceImpl eventService;
@@ -376,6 +381,61 @@ class EventServiceImplTest {
         // ASSERT
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).venueName()).isEqualTo("Marina Convention Center");
+    }
+
+    // ---------- visibilidad de borradores ----------
+
+    @Test
+    @DisplayName("T-SEC-017: un evento DRAFT se responde como inexistente para USER o anonimo")
+    void eventoDraftSinRolLanzaResourceNotFound() {
+        // ARRANGE
+        Event evento = evento(EventStatus.DRAFT, FECHA_FUTURA, venueActivo());
+        when(eventRepository.findByEventCode(EVENT_CODE)).thenReturn(Optional.of(evento));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(false);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> eventService.findByCode(EVENT_CODE))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Event not found: " + EVENT_CODE);
+
+        verify(eventMapper, never()).toResponse(any());
+    }
+
+    @Test
+    @DisplayName("FR-SEC-EVT-03: STAFF o ADMIN si pueden ver un evento DRAFT")
+    void eventoDraftConRolStaffSeRetorna() {
+        // ARRANGE
+        Event evento = evento(EventStatus.DRAFT, FECHA_FUTURA, venueActivo());
+        when(eventRepository.findByEventCode(EVENT_CODE)).thenReturn(Optional.of(evento));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(true);
+        when(eventMapper.toResponse(evento)).thenReturn(respuestaDe(evento));
+
+        // ACT
+        EventResponse resultado = eventService.findByCode(EVENT_CODE);
+
+        // ASSERT
+        assertThat(resultado.status()).isEqualTo(EventStatus.DRAFT);
+    }
+
+    @Test
+    @DisplayName("FR-SEC-EVT-03: findByArtist oculta los borradores a USER o anonimo")
+    void eventosPorArtistaOcultanBorradoresSinRol() {
+        // ARRANGE
+        Event publicado = evento(EventStatus.PUBLISHED, FECHA_FUTURA, venueActivo());
+        Event borrador = evento(EventStatus.DRAFT, FECHA_FUTURA, venueActivo());
+        when(artistRepository.findByStageNameIgnoreCase("solar beat"))
+                .thenReturn(Optional.of(artista(1L, "Solar Beat")));
+        when(eventRepository.findByArtistStageName("Solar Beat")).thenReturn(List.of(publicado, borrador));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(false);
+        when(eventMapper.toSummary(publicado)).thenReturn(resumenDe(publicado));
+
+        // ACT
+        List<EventSummaryResponse> resultado = eventService.findByArtist("solar beat");
+
+        // ASSERT
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).status()).isEqualTo(EventStatus.PUBLISHED);
+        verify(eventMapper, never()).toSummary(borrador);
     }
 
     // ---------- datos de apoyo ----------
