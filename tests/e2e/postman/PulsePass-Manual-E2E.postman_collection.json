@@ -1,0 +1,578 @@
+{
+  "info": {
+    "_postman_id": "6f1d6c64-6b0e-4c39-9d43-2f0a7c1e5e21",
+    "name": "PulsePass — E2E Manual",
+    "description": "Pruebas end-to-end manuales de PulsePass (Fase 5). Sin scripts: cada request se envía con Send y se revisa a mano. Importen también tests/e2e/postman/PulsePass-local.postman_environment.json y sigan tests/e2e/checklist-e2e-manual.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Preparación / conectividad",
+      "description": "Antes de esta carpeta: base pulsepass_e2e vacía y la aplicación arrancada contra ella (ver tests/e2e/README.md). Las tres cuentas privilegiadas se registran por el registro público y después seed-e2e.sql les da su rol. Orden: PREP-01 → PREP-02 → PREP-03 → PREP-04 → ejecutar seed-e2e.sql → PREP-05.",
+      "item": [
+        {
+          "name": "PREP-01 · Conectividad: venues activos sin token",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/venues/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "venues", "active"]
+            },
+            "description": "ID: PREP-01\nObjetivo: Confirmar que la API responde antes de preparar datos.\nActor: ANONYMOUS\nPrecondiciones: Aplicación arrancada contra pulsepass_e2e.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200 y un arreglo JSON (vacío antes del seed). Si no responde, todo lo demás queda BLOCKED.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "PREP-02 · Registrar la cuenta que será ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: PREP-02\nObjetivo: Crear la cuenta e2e_admin con el registro público (queda como USER).\nActor: ANONYMOUS\nPrecondiciones: adminPassword con valor actual en el ambiente.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201\nRevisión manual: 201; el body no trae `password`. Todavía es USER: el rol ADMIN lo da seed-e2e.sql.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminIdentifier}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"firstName\": \"Admin\",\n  \"lastName\": \"E2E\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PREP-03 · Registrar la cuenta que será STAFF",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: PREP-03\nObjetivo: Crear la cuenta e2e_staff con el registro público.\nActor: ANONYMOUS\nPrecondiciones: staffPassword con valor actual.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201\nRevisión manual: 201; sin `password` en la respuesta.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{staffIdentifier}}\",\n  \"email\": \"{{staffEmail}}\",\n  \"firstName\": \"Staff\",\n  \"lastName\": \"E2E\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{staffPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PREP-04 · Registrar la cuenta que se desactivará",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: PREP-04\nObjetivo: Crear la cuenta e2e_inactivo, que la carpeta 09 desactiva con SQL.\nActor: ANONYMOUS\nPrecondiciones: inactivePassword con valor actual.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201\nRevisión manual: 201; sin `password` en la respuesta.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{inactiveIdentifier}}\",\n  \"email\": \"{{inactiveEmail}}\",\n  \"firstName\": \"Inactivo\",\n  \"lastName\": \"E2E\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{inactivePassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PREP-05 · Comprobar que el seed se aplicó",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{publishedEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{publishedEventCode}}"]
+            },
+            "description": "ID: PREP-05\nObjetivo: Confirmar los fixtures antes de empezar los casos.\nActor: ANONYMOUS\nPrecondiciones: seed-e2e.sql ejecutado sin errores (PREP-02 a 04 hechos antes).\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200, `eventCode` = E2E-PUB-01, `status` = PUBLISHED, `venueCode` = E2E-VEN-ACT y Neon Waves en `artists`. Si responde 404, el seed no corrió.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 Venues (2 rutas)",
+      "description": "Flujo A: consultas públicas, sin token.",
+      "item": [
+        {
+          "name": "TC-BIZ-001a · Venues activos",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/venues/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "venues", "active"]
+            },
+            "description": "ID: TC-BIZ-001a\nObjetivo: Listar venues activos.\nActor: ANONYMOUS\nPrecondiciones: Seed aplicado.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; incluye E2E-VEN-ACT y E2E-VEN-UNO con `active` = true; **no** incluye E2E-VEN-INA.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-001b · Venue por código",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/venues/{{venueActiveCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "venues", "{{venueActiveCode}}"]
+            },
+            "description": "ID: TC-BIZ-001b\nObjetivo: Consultar un venue por código.\nActor: ANONYMOUS\nPrecondiciones: Seed aplicado.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `code` = E2E-VEN-ACT, `capacity` = 500, `active` = true.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-VEN-01-404 · Venue inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/venues/NO-EXISTE-{{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "venues", "NO-EXISTE-{{runId}}"]
+            },
+            "description": "ID: E2E-VEN-01-404\nObjetivo: Comprobar el 404 de un código ausente.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `Venue not found: NO-EXISTE-r01`. Body con `ErrorResponse` completo (timestamp, status, error, message, details) y sin datos internos.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 Artists (3 rutas)",
+      "description": "Flujo A: consultas públicas de artistas. Aquí se copia `artistId`.",
+      "item": [
+        {
+          "name": "TC-BIZ-002a · Artistas activos",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/artists/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artists", "active"]
+            },
+            "description": "ID: TC-BIZ-002a\nObjetivo: Listar artistas activos.\nActor: ANONYMOUS\nPrecondiciones: Seed aplicado.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; están los cinco artistas de V2 (Solar Beat, Neon Waves, Caribbean Sound, Ocean Drive, Digital Pulse) y **no** está `E2E Retired Artist`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-002b · Artista por stage name",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/artists/by-stage-name?stageName={{artistStageName}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artists", "by-stage-name"],
+              "query": [{"key": "stageName", "value": "{{artistStageName}}"}]
+            },
+            "description": "ID: TC-BIZ-002b\nObjetivo: Buscar un artista por nombre artístico.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `stageName` = Neon Waves, `active` = true.\nCopiar: Copia el `id` de la respuesta a la variable `artistId`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-002c · Artista por id",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/artists/{{artistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artists", "{{artistId}}"]
+            },
+            "description": "ID: TC-BIZ-002c\nObjetivo: Consultar el artista por el id copiado.\nActor: ANONYMOUS\nPrecondiciones: `artistId` copiado del caso anterior.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; mismo `id` y `stageName` = Neon Waves.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-ART-01-404 · Artista inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/artists/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artists", "999999"]
+            },
+            "description": "ID: E2E-ART-01-404\nObjetivo: Comprobar el 404 de un id ausente.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `Artist not found: 999999`. Body con `ErrorResponse` completo (timestamp, status, error, message, details) y sin datos internos.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-ART-01-400 · Id no numérico → 400",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {"raw": "{{baseUrl}}/api/artists/abc", "host": ["{{baseUrl}}"], "path": ["api", "artists", "abc"]},
+            "description": "ID: E2E-ART-01-400\nObjetivo: Comprobar un parámetro de ruta con tipo incorrecto.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `message` = `Invalid value for parameter: id`; `details.id` = `Invalid value`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 Auth / usuarios (registro, login, me)",
+      "description": "Flujo B. Después de cada login copia `accessToken` a la variable del actor (pestaña Variables del ambiente, columna *Current value*). Los tokens duran 15 minutos: si más adelante aparece un 401 inesperado, repite el login de ese actor.",
+      "item": [
+        {
+          "name": "TC-AUTH-001 · Registrar USER_A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: TC-AUTH-001\nObjetivo: Registro público válido.\nActor: ANONYMOUS\nPrecondiciones: userAPassword con valor actual.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201\nRevisión manual: 201; `username`, `email`, `firstName`, `birthDate` como se enviaron; **no** aparece `password` ni ningún hash; no se entrega token.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{userAUsername}}\",\n  \"email\": \"{{userAEmail}}\",\n  \"firstName\": \"Andrea\",\n  \"lastName\": \"Pruebas\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{userAPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-006 · Registrar USER_B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: TC-BIZ-006\nObjetivo: Segundo usuario independiente.\nActor: ANONYMOUS\nPrecondiciones: userBPassword con valor actual.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201\nRevisión manual: 201; id distinto al de USER_A; sin `password`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{userBUsername}}\",\n  \"email\": \"{{userBEmail}}\",\n  \"firstName\": \"Bruno\",\n  \"lastName\": \"Pruebas\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{userBPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-006-409 · Registrar USER_A otra vez → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: TC-BIZ-006-409\nObjetivo: Comprobar la unicidad de username.\nActor: ANONYMOUS\nPrecondiciones: TC-AUTH-001 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 409\nRevisión manual: 409; `message` = `Username already exists: e2e_andrea_r01`. Body con `ErrorResponse` completo (timestamp, status, error, message, details) y sin datos internos.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{userAUsername}}\",\n  \"email\": \"{{userAEmail}}\",\n  \"firstName\": \"Andrea\",\n  \"lastName\": \"Pruebas\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{userAPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-HTTP-001 · Registro con email inválido → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: TC-HTTP-001\nObjetivo: Validación de formato.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `message` = `Validation failed`; `details.email` = `Email must be valid`. No se crea el usuario.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"e2e_sin_arroba_{{runId}}\",\n  \"email\": \"correo-sin-arroba\",\n  \"firstName\": \"Andrea\",\n  \"lastName\": \"Pruebas\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{userAPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-HTTP-002 · Registro con contraseña corta → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: TC-HTTP-002\nObjetivo: Longitud mínima de la contraseña.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `details.password` = `Password must have between 12 and 72 characters`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"e2e_corta_{{runId}}\",\n  \"email\": \"corta.{{runId}}@example.test\",\n  \"firstName\": \"Andrea\",\n  \"lastName\": \"Pruebas\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"corta\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-016a · Registro con rol ADMIN inyectado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"]},
+            "description": "ID: TC-SEC-016a\nObjetivo: Comprobar que el cliente no puede elegir su rol.\nActor: ANONYMOUS\nPrecondiciones: userCPassword con valor actual.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201 o 400\nRevisión manual: 201 (el campo `roles` se ignora) o 400 (el servidor rechaza campos desconocidos). Anota cuál fue. Si fue 201, TC-SEC-016b debe mostrar solo USER; si fue 400, marca TC-SEC-016b como no aplica.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{userCUsername}}\",\n  \"email\": \"{{userCEmail}}\",\n  \"firstName\": \"Carla\",\n  \"lastName\": \"Pruebas\",\n  \"phone\": \"3000000000\",\n  \"city\": \"Santa Marta\",\n  \"birthDate\": \"1998-05-15\",\n  \"password\": \"{{userCPassword}}\",\n  \"roles\": [\n    \"ADMIN\"\n  ],\n  \"role\": \"ADMIN\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-AUTH-002 · Login USER_A por username",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: TC-AUTH-002\nObjetivo: Obtener el JWT de USER_A.\nActor: USER_A\nPrecondiciones: TC-AUTH-001 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `accessToken` no vacío, `tokenType` = Bearer, `expiresIn` = {{expectedTokenTtlSeconds}}.\nCopiar: Copia `accessToken` a `userAToken` **y también** a `expiredToken` (se usa al final, cuando ya venció). Anota la hora.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{userAUsername}}\",\n  \"password\": \"{{userAPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-AUTH-003 · Login USER_A por email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: TC-AUTH-003\nObjetivo: El identificador también acepta el email.\nActor: USER_A\nPrecondiciones: TC-AUTH-001 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200 con un `accessToken` nuevo (no hace falta copiarlo).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{userAEmail}}\",\n  \"password\": \"{{userAPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-AUTH-004 · Login con contraseña errónea → 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: TC-AUTH-004\nObjetivo: Mensaje genérico ante una clave incorrecta.\nActor: USER_A\nPrecondiciones: TC-AUTH-001 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 401\nRevisión manual: 401; `message` = `Invalid credentials`; no hay `accessToken`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{userAUsername}}\",\n  \"password\": \"ClaveIncorrecta2026!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-AUTH-005 · Login con usuario inexistente → 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: TC-AUTH-005\nObjetivo: No distinguir usuario inexistente de clave incorrecta.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 401\nRevisión manual: 401 con **exactamente** el mismo `message` que TC-AUTH-004 (`Invalid credentials`).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"nadie_{{runId}}\",\n  \"password\": \"UnaClaveCualquiera2026!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-AUTH-01-400 · Login sin contraseña → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: E2E-AUTH-01-400\nObjetivo: Validación del request de login.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `details.password` = `Password is required`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{userAUsername}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LOGIN-B · Login USER_B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: LOGIN-B\nObjetivo: Obtener el JWT de USER_B.\nActor: USER_B\nPrecondiciones: TC-BIZ-006 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200 con `accessToken`.\nCopiar: Copia `accessToken` a `userBToken`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{userBUsername}}\",\n  \"password\": \"{{userBPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LOGIN-STAFF · Login STAFF",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: LOGIN-STAFF\nObjetivo: Obtener el JWT de STAFF.\nActor: STAFF\nPrecondiciones: PREP-03 y seed hechos.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200 con `accessToken`.\nCopiar: Copia `accessToken` a `staffToken`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{staffIdentifier}}\",\n  \"password\": \"{{staffPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LOGIN-ADMIN · Login ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: LOGIN-ADMIN\nObjetivo: Obtener el JWT de ADMIN.\nActor: ADMIN\nPrecondiciones: PREP-02 y seed hechos.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200 con `accessToken`.\nCopiar: Copia `accessToken` a `adminToken`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{adminIdentifier}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-AUTH-006 · /me con el token de USER_A",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {"raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"]},
+            "description": "ID: TC-AUTH-006\nObjetivo: Identidad del token.\nActor: USER_A\nPrecondiciones: userAToken copiado.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `username` = e2e_andrea_r01, `email` = andrea.r01@example.test, `roles` = [\"USER\"]; sin contraseña, hash ni token.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-AUTH-02-B · /me con el token de USER_B",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {"raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"]},
+            "description": "ID: E2E-AUTH-02-B\nObjetivo: Identidad de USER_B.\nActor: USER_B\nPrecondiciones: userBToken copiado.\nAutorización: Bearer {{userBToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `username` = e2e_bruno_r01, `roles` = [\"USER\"].\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userBToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-AUTH-02-STAFF · /me con el token de STAFF",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {"raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"]},
+            "description": "ID: E2E-AUTH-02-STAFF\nObjetivo: Privilegios efectivos de STAFF.\nActor: STAFF\nPrecondiciones: staffToken copiado.\nAutorización: Bearer {{staffToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `roles` = [\"STAFF\"] (el seed reemplaza el USER del registro por STAFF).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{staffToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-AUTH-02-ADMIN · /me con el token de ADMIN",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {"raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"]},
+            "description": "ID: E2E-AUTH-02-ADMIN\nObjetivo: Privilegios efectivos de ADMIN.\nActor: ADMIN\nPrecondiciones: adminToken copiado.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `roles` = [\"ADMIN\"].\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-016b · Login y roles del usuario C",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"]},
+            "description": "ID: TC-SEC-016b\nObjetivo: Comprobar que el rol inyectado no se aplicó.\nActor: USER_C\nPrecondiciones: TC-SEC-016a respondió 201 (si fue 400, este caso no aplica).\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200. Copia `accessToken` a `userCToken` y envía TC-SEC-016c.\nCopiar: Copia `accessToken` a `userCToken`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{userCUsername}}\",\n  \"password\": \"{{userCPassword}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-016c · /me del usuario C: solo USER",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {"raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"]},
+            "description": "ID: TC-SEC-016c\nObjetivo: Confirmar que el registro público nunca da ADMIN.\nActor: USER_C\nPrecondiciones: userCToken copiado.\nAutorización: Bearer {{userCToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `roles` = [\"USER\"]. Si aparece ADMIN, es un defecto grave: FAIL.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userCToken}}", "type": "string"}]}
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
