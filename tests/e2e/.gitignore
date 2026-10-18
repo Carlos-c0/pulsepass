@@ -1,0 +1,12 @@
+# Las pruebas E2E se ejecutan a mano desde Postman. Los valores actuales de las variables
+# (contraseñas y tokens) viven solo en Postman y nunca se suben al repositorio (FR-E2E-013).
+
+# Exportaciones de Postman hechas con los valores actuales
+*.local.postman_environment.json
+*.postman_globals.json
+
+# Capturas o evidencias que puedan mostrar tokens o datos personales
+evidencias-privadas/
+
+# Variables de entorno locales (clave del JWT de la corrida E2E)
+.env
