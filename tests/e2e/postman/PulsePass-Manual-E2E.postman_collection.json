@@ -573,6 +573,684 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "04 Usuarios / consulta y propiedad (2 rutas)",
+      "description": "Consultas de usuario: solo el propio usuario o ADMIN. Política para recursos ajenos: 403, decidido **antes** de mirar si existe (anti-enumeración).",
+      "item": [
+        {
+          "name": "E2E-USR-02 · USER_A consulta su usuario por email",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email?email={{userAEmail}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"],
+              "query": [{"key": "email", "value": "{{userAEmail}}"}]
+            },
+            "description": "ID: E2E-USR-02\nObjetivo: El dueño ve sus datos.\nActor: USER_A\nPrecondiciones: userAToken vigente.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `username` = e2e_andrea_r01, `firstName` = Andrea, `birthDate` = 1998-05-15; sin `password`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-USR-03 · USER_A consulta su usuario por username",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-username?username={{userAUsername}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-username"],
+              "query": [{"key": "username", "value": "{{userAUsername}}"}]
+            },
+            "description": "ID: E2E-USR-03\nObjetivo: El dueño ve sus datos.\nActor: USER_A\nPrecondiciones: userAToken vigente.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `email` = andrea.r01@example.test.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-006 · USER_B consulta a USER_A por email → 403",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email?email={{userAEmail}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"],
+              "query": [{"key": "email", "value": "{{userAEmail}}"}]
+            },
+            "description": "ID: TC-SEC-006\nObjetivo: Acceso horizontal denegado.\nActor: USER_B\nPrecondiciones: userBToken vigente.\nAutorización: Bearer {{userBToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403; `message` = `No tiene permisos para realizar esta operación`; el body **no** trae nombre, teléfono ni fecha de A.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userBToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-007 · USER_B consulta a USER_A por username → 403",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-username?username={{userAUsername}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-username"],
+              "query": [{"key": "username", "value": "{{userAUsername}}"}]
+            },
+            "description": "ID: TC-SEC-007\nObjetivo: Acceso horizontal denegado.\nActor: USER_B\nPrecondiciones: userBToken vigente.\nAutorización: Bearer {{userBToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403 y `ErrorResponse`; ningún dato de A.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userBToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-USR-02-ENUM · USER_B consulta un email inexistente → 403",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email?email=nadie.{{runId}}@example.test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"],
+              "query": [{"key": "email", "value": "nadie.{{runId}}@example.test"}]
+            },
+            "description": "ID: E2E-USR-02-ENUM\nObjetivo: Anti-enumeración: la respuesta es igual exista o no el email.\nActor: USER_B\nPrecondiciones: userBToken vigente.\nAutorización: Bearer {{userBToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403, igual que TC-SEC-006. Si respondiera 404, B podría averiguar qué emails existen.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userBToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-USR-02-401 · Consulta de usuario sin token → 401",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email?email={{userAEmail}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"],
+              "query": [{"key": "email", "value": "{{userAEmail}}"}]
+            },
+            "description": "ID: E2E-USR-02-401\nObjetivo: Ruta protegida sin identidad (TC-AUTH-007).\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 401\nRevisión manual: 401; `message` = `Authentication required`. Body con `ErrorResponse` completo (timestamp, status, error, message, details) y sin datos internos.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-USR-02-ADMIN · ADMIN consulta a USER_A por email",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email?email={{userAEmail}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"],
+              "query": [{"key": "email", "value": "{{userAEmail}}"}]
+            },
+            "description": "ID: E2E-USR-02-ADMIN\nObjetivo: ADMIN puede consultar cualquier usuario.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; datos de A.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-USR-02-ADMIN-404 · ADMIN consulta un email inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email?email=nadie.{{runId}}@example.test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"],
+              "query": [{"key": "email", "value": "nadie.{{runId}}@example.test"}]
+            },
+            "description": "ID: E2E-USR-02-ADMIN-404\nObjetivo: Para quien sí tiene permiso, lo inexistente es 404.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `User not found: nadie.r01@example.test`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-USR-02-400 · Consulta sin parámetro → 400",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/by-email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "by-email"]
+            },
+            "description": "ID: E2E-USR-02-400\nObjetivo: Parámetro obligatorio ausente.\nActor: USER_A\nPrecondiciones: userAToken vigente.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `message` = `Missing required parameter: email`; `details.email` = `Parameter is required`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 Events / administración y visibilidad (6 rutas)",
+      "description": "Flujo C. ADMIN crea, asocia y publica; USER y STAFF no pueden. Los borradores solo los ven STAFF y ADMIN; para el resto responden 404, como si no existieran.",
+      "item": [
+        {
+          "name": "E2E-EVT-03 · Eventos publicados sin token",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/published",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "published"]
+            },
+            "description": "ID: E2E-EVT-03\nObjetivo: Listado público.\nActor: ANONYMOUS\nPrecondiciones: Seed aplicado.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; incluye E2E-PUB-01, E2E-EDAD-99 y E2E-AFORO-1; **no** incluye E2E-DRAFT-01 ni E2E-TOPUB-01. Cada elemento trae `venueName` y `venueCity`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-02 · Evento publicado sin token",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{publishedEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{publishedEventCode}}"]
+            },
+            "description": "ID: E2E-EVT-02\nObjetivo: Detalle público.\nActor: ANONYMOUS\nPrecondiciones: Seed aplicado.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `status` = PUBLISHED, `minimumAge` = 18, Neon Waves en `artists`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-004 · Borrador sin token → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{draftEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{draftEventCode}}"]
+            },
+            "description": "ID: TC-SEC-004\nObjetivo: Un anónimo no ve borradores.\nActor: ANONYMOUS\nPrecondiciones: Seed aplicado.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `Event not found: E2E-DRAFT-01`; el body no trae nombre ni fecha del borrador.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-004b · Borrador con USER_A → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{draftEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{draftEventCode}}"]
+            },
+            "description": "ID: TC-SEC-004b\nObjetivo: Un USER tampoco ve borradores.\nActor: USER_A\nPrecondiciones: userAToken vigente.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404, igual que sin token.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-015 · Borrador con ADMIN → 200",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{draftEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{draftEventCode}}"]
+            },
+            "description": "ID: TC-SEC-015\nObjetivo: ADMIN sí ve borradores.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `status` = DRAFT.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-015b · Borrador con STAFF → 200",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{draftEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{draftEventCode}}"]
+            },
+            "description": "ID: TC-SEC-015b\nObjetivo: STAFF sí ve borradores.\nActor: STAFF\nPrecondiciones: staffToken vigente.\nAutorización: Bearer {{staffToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `status` = DRAFT.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{staffToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-001a · Crear evento sin token → 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-SEC-001a\nObjetivo: Crear eventos exige identidad.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 401\nRevisión manual: 401; `message` = `Authentication required`. Comprueba después que `newEventCode` no existe (lo confirma TC-BIZ-003 con 201).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"{{newEventCode}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-001b · Crear evento con USER_A → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-SEC-001b\nObjetivo: Un USER no crea eventos (también cubre TC-AUTH-014).\nActor: USER_A\nPrecondiciones: userAToken vigente.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403; `message` = `No tiene permisos para realizar esta operación`. Body con `ErrorResponse` completo (timestamp, status, error, message, details) y sin datos internos.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"{{newEventCode}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-001c · Crear evento con STAFF → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-SEC-001c\nObjetivo: STAFF tampoco crea eventos.\nActor: STAFF\nPrecondiciones: staffToken vigente.\nAutorización: Bearer {{staffToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403 y `ErrorResponse`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{staffToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"{{newEventCode}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-003 · ADMIN crea un evento → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-003\nObjetivo: Creación válida.\nActor: ADMIN\nPrecondiciones: adminToken vigente; `newEventCode` sin usar.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 201\nRevisión manual: 201; `eventCode` = E2E-NEW-r01, `status` = DRAFT, `venueCode` = E2E-VEN-ACT, `artists` = []. Que sea 201 demuestra que los tres intentos anteriores no crearon nada.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"{{newEventCode}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-015a · Crear el mismo código otra vez → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-015a\nObjetivo: Código duplicado.\nActor: ADMIN\nPrecondiciones: TC-BIZ-003 hecho.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 409\nRevisión manual: 409; `message` = `Event code already exists: E2E-NEW-r01`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"{{newEventCode}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-015b · Crear evento en un venue inactivo → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-015b\nObjetivo: Regla de negocio del venue.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 409\nRevisión manual: 409; `message` = `Venue is not active: E2E-VEN-INA`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"E2E-INA-{{runId}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueInactiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-015c · Crear evento con fecha pasada → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-015c\nObjetivo: La fecha debe ser futura.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 409\nRevisión manual: 409; `message` = `Event date must be in the future.`\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"E2E-PAST-{{runId}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2020-01-01T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-015d · Crear evento en un venue inexistente → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-015d\nObjetivo: Venue ausente.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `Venue not found: NO-EXISTE`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"E2E-NOVEN-{{runId}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"NO-EXISTE\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-015e · Crear evento con categoría inválida → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-015e\nObjetivo: Enum inválido.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `message` = `Malformed JSON request`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventCode\": \"E2E-CAT-{{runId}}\",\n  \"name\": \"PulsePass E2E {{runId}}\",\n  \"description\": \"Evento de prueba manual\",\n  \"category\": \"MUSICA\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": 0,\n  \"venueCode\": \"{{venueActiveCode}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-015f · Crear evento sin campos obligatorios → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {"raw": "{{baseUrl}}/api/events", "host": ["{{baseUrl}}"], "path": ["api", "events"]},
+            "description": "ID: TC-BIZ-015f\nObjetivo: Bean Validation.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 400\nRevisión manual: 400; `message` = `Validation failed`; `details` trae `eventCode`, `venueCode` y `minimumAge` (`Minimum age cannot be negative`).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]},
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sin codigo\",\n  \"category\": \"MUSIC\",\n  \"eventDate\": \"2030-09-15T20:00:00\",\n  \"minimumAge\": -1\n}",
+              "options": {"raw": {"language": "json"}}
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-02-NEW-ADMIN · ADMIN lee el evento nuevo (borrador)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}"]
+            },
+            "description": "ID: E2E-EVT-02-NEW-ADMIN\nObjetivo: Leer lo creado.\nActor: ADMIN\nPrecondiciones: TC-BIZ-003 hecho.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `status` = DRAFT.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-02-NEW-ANON · El evento nuevo todavía no es público → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}"]
+            },
+            "description": "ID: E2E-EVT-02-NEW-ANON\nObjetivo: Un borrador recién creado no se filtra.\nActor: ANONYMOUS\nPrecondiciones: TC-BIZ-003 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; y en `/api/events/published` tampoco aparece.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-003 · USER_A asocia un artista → 403",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}/artists/{{artistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}", "artists", "{{artistId}}"]
+            },
+            "description": "ID: TC-SEC-003\nObjetivo: Asociar artistas es de ADMIN.\nActor: USER_A\nPrecondiciones: artistId copiado; TC-BIZ-003 hecho.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403 y `ErrorResponse`. TC-BIZ-005 confirma después que no quedó asociado.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-005 · ADMIN asocia el artista al evento nuevo",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}/artists/{{artistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}", "artists", "{{artistId}}"]
+            },
+            "description": "ID: TC-BIZ-005\nObjetivo: Asociación válida.\nActor: ADMIN\nPrecondiciones: artistId copiado.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `artists` tiene **un** elemento: Neon Waves (si hubiera dos, TC-SEC-003 habría mutado algo).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-005-409 · Asociar el mismo artista otra vez → 409",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}/artists/{{artistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}", "artists", "{{artistId}}"]
+            },
+            "description": "ID: TC-BIZ-005-409\nObjetivo: Sin duplicados.\nActor: ADMIN\nPrecondiciones: TC-BIZ-005 hecho.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 409\nRevisión manual: 409; `message` = `Artist Neon Waves is already associated with event E2E-NEW-r01`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-005-404 · Asociar un artista inexistente → 404",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}/artists/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}", "artists", "999999"]
+            },
+            "description": "ID: TC-BIZ-005-404\nObjetivo: Artista ausente.\nActor: ADMIN\nPrecondiciones: TC-BIZ-003 hecho.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `Artist not found: 999999`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-002a · USER_A publica un evento → 403",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventToPublishCode}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventToPublishCode}}", "publish"]
+            },
+            "description": "ID: TC-SEC-002a\nObjetivo: Publicar es de ADMIN.\nActor: USER_A\nPrecondiciones: userAToken vigente.\nAutorización: Bearer {{userAToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403 y `ErrorResponse`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{userAToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-002b · STAFF publica un evento → 403",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventToPublishCode}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventToPublishCode}}", "publish"]
+            },
+            "description": "ID: TC-SEC-002b\nObjetivo: STAFF tampoco publica.\nActor: STAFF\nPrecondiciones: staffToken vigente.\nAutorización: Bearer {{staffToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 403\nRevisión manual: 403 y `ErrorResponse`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{staffToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-002c · El borrador sigue en DRAFT",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventToPublishCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventToPublishCode}}"]
+            },
+            "description": "ID: TC-SEC-002c\nObjetivo: Verificar que las denegaciones no mutaron nada.\nActor: ADMIN\nPrecondiciones: TC-SEC-002a y b hechos.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `status` = DRAFT.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-004 · ADMIN publica el evento nuevo",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}", "publish"]
+            },
+            "description": "ID: TC-BIZ-004\nObjetivo: Transición DRAFT → PUBLISHED.\nActor: ADMIN\nPrecondiciones: TC-BIZ-005 hecho.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; `status` = PUBLISHED; Neon Waves sigue en `artists`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-BIZ-004-409 · Publicar otra vez → 409",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}", "publish"]
+            },
+            "description": "ID: TC-BIZ-004-409\nObjetivo: Solo se publica un DRAFT.\nActor: ADMIN\nPrecondiciones: TC-BIZ-004 hecho.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 409\nRevisión manual: 409; `message` = `Only DRAFT events can be published. Current status: PUBLISHED`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-02-NEW-PUB · El evento publicado ya es público",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{newEventCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{newEventCode}}"]
+            },
+            "description": "ID: E2E-EVT-02-NEW-PUB\nObjetivo: Propagación de la publicación (FR-E2E-008).\nActor: ANONYMOUS\nPrecondiciones: TC-BIZ-004 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200 sin token; `status` = PUBLISHED.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-03-NEW · El evento nuevo aparece en publicados",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/published",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "published"]
+            },
+            "description": "ID: E2E-EVT-03-NEW\nObjetivo: Propagación al listado.\nActor: ANONYMOUS\nPrecondiciones: TC-BIZ-004 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; ahora incluye E2E-NEW-r01; sigue sin E2E-DRAFT-01 ni E2E-TOPUB-01.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "TC-SEC-005 · Eventos por artista sin token: sin borradores",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/by-artist?stageName={{artistStageName}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "by-artist"],
+              "query": [{"key": "stageName", "value": "{{artistStageName}}"}]
+            },
+            "description": "ID: TC-SEC-005\nObjetivo: El filtro por artista no filtra borradores.\nActor: ANONYMOUS\nPrecondiciones: TC-BIZ-004 hecho.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; trae E2E-PUB-01 y E2E-NEW-r01; **no** trae E2E-DRAFT-01 (que también tiene a Neon Waves).\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-06-ADMIN · Eventos por artista con ADMIN: incluye el borrador",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/by-artist?stageName={{artistStageName}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "by-artist"],
+              "query": [{"key": "stageName", "value": "{{artistStageName}}"}]
+            },
+            "description": "ID: E2E-EVT-06-ADMIN\nObjetivo: Un operador autorizado sí ve el borrador.\nActor: ADMIN\nPrecondiciones: adminToken vigente.\nAutorización: Bearer {{adminToken}}\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 200\nRevisión manual: 200; trae E2E-PUB-01, E2E-NEW-r01 **y** E2E-DRAFT-01.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          },
+          "response": []
+        },
+        {
+          "name": "E2E-EVT-06-404 · Eventos de un artista inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/by-artist?stageName=Nadie {{runId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "by-artist"],
+              "query": [{"key": "stageName", "value": "Nadie {{runId}}"}]
+            },
+            "description": "ID: E2E-EVT-06-404\nObjetivo: Artista ausente.\nActor: ANONYMOUS\nPrecondiciones: Ninguna.\nAutorización: Sin token (No Auth)\nEjecución: abrir la request y pulsar Send\nHTTP esperado: 404\nRevisión manual: 404; `message` = `Artist not found: Nadie r01`.\nEvidencia: anotar HTTP real, resultado y observación en registro-ejecucion-manual.md",
+            "auth": {"type": "noauth"}
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }
