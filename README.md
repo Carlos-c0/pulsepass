@@ -1,13 +1,14 @@
 # PulsePass
 
-Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene cuatro capas:
+Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene cuatro capas y una fase de pruebas end-to-end:
 
 - **Persistencia:** modelo relacional versionado con Flyway, entidades JPA, repositories Spring Data y pruebas de integración contra PostgreSQL real con Testcontainers.
 - **Servicios:** reglas de negocio, transacciones, DTOs, mapeo con MapStruct, excepciones de dominio y pruebas unitarias con Mockito.
 - **Controladores:** API REST con Spring MVC, validación de requests con Bean Validation, manejo centralizado de errores y pruebas de contrato HTTP con MockMvc.
 - **Seguridad:** autenticación stateless con JWT Bearer, contraseñas con BCrypt, roles `USER`, `STAFF` y `ADMIN`, y control de propiedad de los recursos.
+- **Pruebas E2E:** colección de Postman para recorrer a mano las 22 rutas contra la aplicación real y PostgreSQL, con bitácora de resultados.
 
-La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD_PulsePass_Capa_Servicios` (servicios) `PRD_PulsePass_Capa_Controladores_v2` (controladores) y `PRD_PulsePass_Capa_Seguridad_Spring_Security_JJWT` (seguridad). Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `CTRL-*`, `TEST-*`, `SEC-*`, `T-SEC-*`) son los de esos documentos.
+La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD_PulsePass_Capa_Servicios` (servicios) `PRD_PulsePass_Capa_Controladores_v2` (controladores) `PRD_PulsePass_Capa_Seguridad_Spring_Security_JJWT` (seguridad) y `PRD_PulsePass_Pruebas_E2E_Postman_Manual` (pruebas E2E). Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `CTRL-*`, `TEST-*`, `SEC-*`, `T-SEC-*`) son los de esos documentos.
 
 ## Tecnologías
 
@@ -22,6 +23,7 @@ La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD
 | API REST | Spring MVC, Bean Validation |
 | Seguridad | Spring Security, JWT con JJWT 0.13 (HS256), BCrypt |
 | Pruebas | JUnit 5, AssertJ, Mockito, MockMvc, Spring Security Test, Testcontainers |
+| Pruebas E2E | Postman (Collection v2.1, ejecución manual) |
 | Build | Maven (`./mvnw`) |
 
 ## Requisitos previos
@@ -389,6 +391,18 @@ Pruebas de contrato HTTP. Usan `@WebMvcTest` (solo levanta la capa web), `MockMv
 | `TicketControllerTest` | TEST-CTRL-TKT-001 a 006 y 008 a 011, JSON mal formado → 400, T-SEC-007 a 013 y 016 |
 
 Algunas pruebas usan SQL nativo únicamente para **verificar** constraints de PostgreSQL (por ejemplo, forzar un estado fuera del catálogo o un par evento-artista repetido). Los requisitos de consulta se resuelven solo con Query Methods y JPQL.
+
+## Pruebas E2E manuales
+
+Además de las pruebas automáticas, `tests/e2e/` tiene una colección de Postman para probar la aplicación real de punta a punta: registro, login, roles, propiedad, publicación de eventos y ciclo de vida de los tickets, contra una base exclusiva `pulsepass_e2e`. Se ejecuta a mano, request por request, sin scripts.
+
+| Archivo | Contenido |
+|---|---|
+| `tests/e2e/README.md` | Preparación, cómo ejecutar cada request, copiar tokens y registrar resultados |
+| `tests/e2e/postman/` | Colección (127 requests en 10 carpetas) y ambiente sin valores sensibles |
+| `tests/e2e/fixtures/` | `seed-e2e.sql` y los comandos para recrear la base |
+| `tests/e2e/checklist-e2e-manual.md` | Orden de ejecución |
+| `tests/e2e/registro-ejecucion-manual.md` | Bitácora con esperado, observado y PASS / FAIL / BLOCKED |
 
 ## Ejecutar la aplicación
 
