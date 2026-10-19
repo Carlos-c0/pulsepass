@@ -107,3 +107,82 @@ Flujo C. ADMIN crea, asocia y publica; USER y STAFF no pueden. Los borradores so
 - [ ] `TC-SEC-005` GET `/api/events/by-artist` · ANONYMOUS · esperado **200**
 - [ ] `E2E-EVT-06-ADMIN` GET `/api/events/by-artist` · ADMIN · esperado **200**
 - [ ] `E2E-EVT-06-404` GET `/api/events/by-artist` · ANONYMOUS · esperado **404**
+
+## 06 Tickets / compra, consulta y ciclo de vida (6 rutas)
+Flujo D. T1 se cancela y T2 se usa: **nunca** se reutiliza un ticket para dos operaciones irreversibles. Cada denegación se comprueba antes de la transición válida y se vuelve a leer el ticket.
+
+- [ ] `TC-BIZ-007a` POST `/api/tickets` · USER_A · esperado **201** — **copiar:** Copia `ticketCode` a `ticketCancelableCode` (T1).
+- [ ] `TC-BIZ-007b` POST `/api/tickets` · USER_A · esperado **201** — **copiar:** Copia `ticketCode` a `ticketUsableCode` (T2).
+- [ ] `TC-SEC-008` POST `/api/tickets` · USER_A · esperado **403**
+- [ ] `E2E-TKT-03-B` GET `/api/tickets/by-user` · USER_B · esperado **200**
+- [ ] `E2E-TKT-01-401` POST `/api/tickets` · ANONYMOUS · esperado **401**
+- [ ] `E2E-TKT-01-STAFF` POST `/api/tickets` · STAFF · esperado **403**
+- [ ] `TC-BIZ-008a` GET `/api/tickets/{{ticketCancelableCode}}` · USER_A · esperado **200**
+- [ ] `TC-BIZ-008b` GET `/api/tickets/by-user` · USER_A · esperado **200**
+- [ ] `TC-SEC-009` GET `/api/tickets/{{ticketCancelableCode}}` · USER_B · esperado **403**
+- [ ] `TC-SEC-010` GET `/api/tickets/by-user` · USER_B · esperado **403**
+- [ ] `E2E-TKT-02-STAFF` GET `/api/tickets/{{ticketCancelableCode}}` · STAFF · esperado **200**
+- [ ] `E2E-TKT-02-404` GET `/api/tickets/TCK-NOEXISTE` · USER_A · esperado **404**
+- [ ] `TC-SEC-011` PATCH `/api/tickets/{{ticketCancelableCode}}/cancel` · USER_B · esperado **403**
+- [ ] `TC-BIZ-010` PATCH `/api/tickets/{{ticketCancelableCode}}/cancel` · USER_A · esperado **200**
+- [ ] `TC-BIZ-011` PATCH `/api/tickets/{{ticketCancelableCode}}/cancel` · USER_A · esperado **409**
+- [ ] `TC-SEC-013` GET `/api/events/{{publishedEventCode}}/tickets/paid` · USER_A · esperado **403**
+- [ ] `TC-BIZ-009` GET `/api/events/{{publishedEventCode}}/tickets/paid` · STAFF · esperado **200**
+- [ ] `TC-SEC-012` PATCH `/api/tickets/{{ticketUsableCode}}/use` · USER_B · esperado **403**
+- [ ] `TC-SEC-012b` PATCH `/api/tickets/{{ticketUsableCode}}/use` · USER_A · esperado **403**
+- [ ] `TC-BIZ-008c` GET `/api/tickets/{{ticketUsableCode}}` · USER_A · esperado **200**
+- [ ] `TC-SEC-014` PATCH `/api/tickets/{{ticketUsableCode}}/use` · STAFF · esperado **200**
+- [ ] `TC-BIZ-013` PATCH `/api/tickets/{{ticketUsableCode}}/use` · STAFF · esperado **409**
+- [ ] `TC-BIZ-014a` POST `/api/tickets` · USER_A · esperado **409**
+- [ ] `TC-BIZ-014b` POST `/api/tickets` · USER_A · esperado **409**
+- [ ] `TC-BIZ-014c` POST `/api/tickets` · USER_A · esperado **201** — **copiar:** Copia `ticketCode` a `ticketCapacityCode`. Comprueba `price` = 80000.00 (STUDENT = 0,8 × 100000).
+- [ ] `TC-BIZ-014d` GET `/api/events/{{capacityEventCode}}` · ANONYMOUS · esperado **200**
+- [ ] `TC-BIZ-014e` POST `/api/tickets` · USER_B · esperado **409**
+- [ ] `TC-BIZ-015g` POST `/api/tickets` · USER_A · esperado **404**
+
+## 07 Seguridad / escenarios negativos
+JWT inválidos y encabezados incorrectos. Un Bearer inválido siempre responde 401, también en rutas públicas. Ninguno de estos casos debe llegar al controller.
+
+- [ ] `TC-AUTH-007` GET `/api/auth/me` · ANONYMOUS · esperado **401**
+- [ ] `TC-AUTH-008` GET `/api/auth/me` · ANONYMOUS · esperado **401**
+- [ ] `TC-AUTH-009` GET `/api/auth/me` · USER_A · esperado **401**
+- [ ] `TC-AUTH-010` GET `/api/auth/me` · USER_A · esperado **401**
+- [ ] `TC-AUTH-011` GET `/api/auth/me` · ANONYMOUS · esperado **401**
+- [ ] `TC-AUTH-012` GET `/api/auth/me` · ANONYMOUS · esperado **401**
+- [ ] `TC-AUTH-015` GET `/api/venues/active` · ANONYMOUS · esperado **401**
+- [ ] `TC-AUTH-016` GET `/api/venues/active` · ANONYMOUS · esperado **401**
+- [ ] `TC-AUTH-017` GET `/api/auth/me` · USER_A · esperado **200**
+
+## 08 Validaciones y errores HTTP
+Flujo E: regresión del contrato de errores. Todas usan un token válido del rol correcto, para que el error venga de la validación y no de la seguridad.
+
+- [ ] `TC-HTTP-003` POST `/api/tickets` · USER_A · esperado **400**
+- [ ] `TC-HTTP-004` POST `/api/tickets` · USER_A · esperado **400**
+- [ ] `TC-HTTP-005` POST `/api/tickets` · USER_A · esperado **400**
+- [ ] `TC-HTTP-006` POST `/api/tickets` · USER_A · esperado **400**
+- [ ] `TC-HTTP-007` GET `/api/no-existe` · USER_A · esperado **404**
+- [ ] `TC-HTTP-008` DELETE `/api/venues/active` · USER_A · esperado **405**
+- [ ] `TC-HTTP-009` GET `/api/tickets/TCK-NOEXISTE` · ADMIN · esperado **404**
+
+## 09 Flujos de negocio / secuencia recomendada
+Escenarios que necesitan un cambio en la base de datos a mitad de camino (usuario desactivado y rol revocado). Van al final porque alteran fixtures. Los comandos SQL están en tests/e2e/fixtures/README.md.
+
+- [ ] `FLOW-F0` POST `/api/auth/login` · INACTIVE_USER · esperado **200** — **copiar:** Copia `accessToken` a `inactiveToken`.
+- [ ] `FLOW-F1` GET `/api/auth/me` · INACTIVE_USER · esperado **200**
+- [ ] **SQL: desactivar la cuenta inactiva** (README de fixtures).
+- [ ] `TC-AUTH-013` GET `/api/auth/me` · INACTIVE_USER · esperado **401**
+- [ ] `TC-AUTH-013b` POST `/api/auth/login` · INACTIVE_USER · esperado **401**
+- [ ] `FLOW-G1` GET `/api/auth/me` · STAFF · esperado **200**
+- [ ] **SQL: revocar STAFF** (README de fixtures).
+- [ ] `TC-SEC-017` PATCH `/api/tickets/{{ticketCapacityCode}}/use` · STAFF · esperado **403**
+- [ ] `FLOW-G2` GET `/api/auth/me` · STAFF · esperado **200**
+- [ ] **SQL: restaurar STAFF** (README de fixtures).
+- [ ] `FLOW-G3` GET `/api/tickets/{{ticketCapacityCode}}` · USER_A · esperado **200**
+- [ ] `FLOW-G4` PATCH `/api/tickets/{{ticketCapacityCode}}/use` · STAFF · esperado **200**
+
+## Al terminar
+
+- [ ] Las 22 rutas tienen al menos un caso nominal ejecutado (tabla de cobertura en `registro-ejecucion-manual.md`).
+- [ ] Cada caso tiene PASS, FAIL, BLOCKED o NOT RUN; ningún caso omitido quedó como PASS.
+- [ ] Los defectos encontrados están en la sección *Defectos*.
+- [ ] Se borraron los *Current value* de contraseñas y tokens antes de exportar o compartir algo.
