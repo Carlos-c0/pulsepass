@@ -41,16 +41,18 @@ src/main/java/com/pulsepass/
 ├── dto/
 │   ├── request/   records de entrada (CreateEventRequest, RegisterUserRequest, PurchaseTicketRequest)
 │   └── response/  records de salida (VenueResponse, EventResponse, ..., ErrorResponse)
-├── mapper/        mappers MapStruct Entity → DTO
+├── mapper/        mappers MapStruct Entity → DTO (con una configuración común en PulsePassMapperConfig)
 ├── exception/     excepciones de dominio y GlobalExceptionHandler
+├── security/      SecurityConfig, filtro JWT, JwtService, UserDetailsService y handlers 401/403
 └── service/       interfaces de servicio
     └── impl/      implementaciones @Service y estrategia de precios
 src/main/resources/
 ├── application.yml
-└── db/migration/  V1__create_schema, V2__insert_initial_artists, V3__add_streaming_url_to_event
-src/test/java/com/pulsepass/                pruebas de integración de persistencia
+└── db/migration/  V1__create_schema, V2__insert_initial_artists, V3__add_streaming_url_to_event, V4__security_credentials_roles
+src/test/java/com/pulsepass/                pruebas de integración de persistencia y de seguridad
 src/test/java/com/pulsepass/service/impl/   pruebas unitarias de servicios
 src/test/java/com/pulsepass/controller/     pruebas de contrato HTTP con MockMvc
+src/test/java/com/pulsepass/security/       pruebas unitarias del JWT, el filtro y el UserDetailsService
 ```
 
 ## Modelo de dominio
@@ -83,8 +85,9 @@ Enums (`EventCategory`, `EventStatus`, `TicketType`, `TicketStatus`): se guardan
 | `V1__create_schema.sql` | Crea `venues`, `events`, `artists`, `event_artists`, `users`, `user_profiles` y `tickets`, con PK, FK, UNIQUE, CHECK e índices. |
 | `V2__insert_initial_artists.sql` | Inserta el catálogo inicial: Solar Beat, Neon Waves, Caribbean Sound, Ocean Drive y Digital Pulse. |
 | `V3__add_streaming_url_to_event.sql` | Agrega `events.streaming_url VARCHAR(500)` nullable, sin modificar V1. |
+| `V4__security_credentials_roles.sql` | Crea `user_credentials` (hash BCrypt, 1:1 con `users`) y `user_roles` (PK compuesta y CHECK de rol). |
 
-Una migración ya aplicada **no se edita**: cualquier cambio estructural nuevo va en una migración nueva (`V4__...`). Hibernate corre con `ddl-auto=validate`: solo comprueba que las entidades coincidan con el esquema, nunca lo crea ni lo modifica.
+Una migración ya aplicada **no se edita**: cualquier cambio estructural nuevo va en una migración nueva (`V5__...`). Hibernate corre con `ddl-auto=validate`: solo comprueba que las entidades coincidan con el esquema, nunca lo crea ni lo modifica.
 
 ### Integridad reforzada en PostgreSQL
 
@@ -140,7 +143,8 @@ Consultas agregadas para la capa de servicios (todas Query Methods):
 - **Relaciones `LAZY` y `open-in-view=false`.** Un `Event` cargado fuera de una transacción trae su `venue` como proxy sin inicializar. Por eso `findByEventCode` usa `@EntityGraph(attributePaths = "venue")`: el evento y su venue llegan en una sola consulta (AC-002).
 - **Identificadores `IDENTITY`.** Coinciden con `BIGSERIAL` en PostgreSQL. Como el `INSERT` se ejecuta al hacer `save`, una violación de UNIQUE aparece de inmediato.
 - **La capa de persistencia no calcula `SOLD_OUT`** (BR-010): el repository persiste el estado tal como llega. Quien decide el cambio es `TicketService` al completar la capacidad (BR-TICKET-008).
-- **API REST sin autenticación**: los endpoints son públicos; seguridad, paginación y OpenAPI quedan fuera del alcance de los tres PRD.
+- **Listas sin N+1.** Las consultas que devuelven varios eventos o tickets traen de una vez lo que el mapper necesita: `JOIN FETCH e.venue` en las consultas JPQL de eventos y `@EntityGraph` en las de tickets (`user` y `event`).
+- **Paginación y OpenAPI** quedan fuera del alcance de los PRD.
 
 ## Capa de servicios
 
@@ -180,10 +184,11 @@ La compra es atómica: validar usuario, evento, edad y capacidad, calcular el pr
 - **Edad mínima.** Se calcula con `UserProfile.birthDate` y se evalúa en la fecha del evento, no en la fecha de compra. Si el evento exige edad y el usuario no tiene fecha de nacimiento, la compra se rechaza.
 - **Capacidad.** Se compra solo si `paidTickets < venue.capacity`. Cuando la compra deja `paidTickets == venue.capacity`, el evento pasa a `SOLD_OUT` en la misma transacción.
 - **`UserResponse` incluye el perfil.** `User` no tiene referencia a `UserProfile`, así que `UserMapper` recibe ambas entidades.
+- **MapStruct en todos los DTO de salida.** Los mappers comparten `PulsePassMapperConfig` (modelo Spring, inyección por constructor y `unmappedTargetPolicy = ERROR`): si a un DTO se le agrega un campo y nadie lo llena, el proyecto no compila. `AuthMapper` arma la respuesta de `/api/auth/me` y ordena los roles.
 - **Artista repetido en un evento** lanza `DuplicateResourceException`. Además, no se asocian artistas inactivos (`BusinessRuleException`).
 - **Consultas por usuario, evento o artista inexistente** lanzan `ResourceNotFoundException` en vez de retornar una lista vacía.
 - **Cancelar un ticket no devuelve el evento de `SOLD_OUT` a `PUBLISHED`**: el PRD no define esa transición.
-- **Concurrencia.** Contar tickets, validar capacidad y guardar no protege contra dos compras simultáneas del último cupo. Queda fuera del alcance (PRD, sección 53).
+- **Concurrencia.** Contar tickets, validar capacidad y guardar no protege contra dos compras simultáneas del último cupo. Queda fuera del alcance (riesgo R-001 del PRD de persistencia). Si aun así dos registros chocan con un `UNIQUE` de PostgreSQL, la API responde 409 y no 500.
 
 ## API REST
 
@@ -247,6 +252,7 @@ Todos los errores salen de `GlobalExceptionHandler` (`@RestControllerAdvice`) co
 | `ResourceNotFoundException` o una ruta que no existe | 404 | El mensaje del Service |
 | Método HTTP no soportado en una ruta existente | 405 | `Method not allowed: ...` |
 | `DuplicateResourceException` o `BusinessRuleException` | 409 | El mensaje del Service |
+| `DataIntegrityViolationException` (choque con un `UNIQUE` de PostgreSQL) | 409 | `The data conflicts with an existing record` |
 | Sin token, o con un token inválido, vencido o de un usuario inactivo | 401 | `Authentication required`, `Invalid or expired token` o `Invalid credentials` en el login |
 | Rol insuficiente o recurso de otro usuario | 403 | `No tiene permisos para realizar esta operación` |
 | Cualquier otra excepción | 500 | `Unexpected error`, sin detalles internos (NFR-CTRL-007); el detalle queda en el log |
@@ -352,7 +358,7 @@ Las clases terminan en `Test` (no en `IT`) para que `mvn test` las ejecute con S
 
 | Clase | Cubre |
 |---|---|
-| `FlywayMigrationTest` | QT-001, QT-002, V2 con los cinco artistas, V1 a V4 aplicadas |
+| `FlywayMigrationTest` | QT-001, QT-002, V2 con los cinco artistas, V1 a V4 aplicadas y registradas en `flyway_schema_history`. Usa su propio contenedor con `@Testcontainers` + `@Container` para partir de una base vacía |
 | `VenuePersistenceTest` | FR-VEN-001 a 004, AC-001, QT-003, QT-009 |
 | `EventRepositoryTest` | FR-EVT-001 a 006, AC-002, AC-006 |
 | `EventArtistTest` | FR-ART-001 a 003, AC-003, QT-005 |
