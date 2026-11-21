@@ -2,6 +2,7 @@ package com.pulsepass.repository;
 
 import com.pulsepass.domain.Ticket;
 import com.pulsepass.domain.TicketStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,10 +17,12 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     List<Ticket> findByUser_EmailIgnoreCase(String email);
 
+    @EntityGraph(attributePaths = {"user", "event"})
     List<Ticket> findByUser_EmailIgnoreCaseOrderByPurchaseDateDesc(String email);
 
     List<Ticket> findByUser_EmailIgnoreCaseAndStatus(String email, TicketStatus status);
 
+    @EntityGraph(attributePaths = {"user", "event"})
     List<Ticket> findByEvent_EventCodeAndStatus(String eventCode, TicketStatus status);
 
     @Query("""

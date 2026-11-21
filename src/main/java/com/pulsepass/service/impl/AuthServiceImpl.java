@@ -8,6 +8,7 @@ import com.pulsepass.dto.request.RegisterUserRequest;
 import com.pulsepass.dto.response.AuthResponse;
 import com.pulsepass.dto.response.AuthenticatedUserResponse;
 import com.pulsepass.dto.response.UserResponse;
+import com.pulsepass.mapper.AuthMapper;
 import com.pulsepass.repository.UserCredentialRepository;
 import com.pulsepass.repository.UserRepository;
 import com.pulsepass.security.JwtService;
@@ -40,19 +41,22 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final AuthMapper authMapper;
 
     public AuthServiceImpl(UserService userService,
                            UserRepository userRepository,
                            UserCredentialRepository userCredentialRepository,
                            PasswordEncoder passwordEncoder,
                            AuthenticationManager authenticationManager,
-                           JwtService jwtService) {
+                           JwtService jwtService,
+                           AuthMapper authMapper) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.userCredentialRepository = userCredentialRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.authMapper = authMapper;
     }
 
     @Override
@@ -98,11 +102,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthenticatedUserResponse currentUser(SecurityPrincipal principal) {
-        return new AuthenticatedUserResponse(
-                principal.userId(),
-                principal.getUsername(),
-                principal.email(),
-                principal.roles().stream().map(Role::name).sorted().toList()
-        );
+        return authMapper.toAuthenticatedUser(principal);
     }
 }

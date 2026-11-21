@@ -4,7 +4,7 @@ import com.pulsepass.domain.Artist;
 import com.pulsepass.dto.response.ArtistResponse;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "spring")
+@Mapper(config = PulsePassMapperConfig.class)
 public interface ArtistMapper {
 
     ArtistResponse toResponse(Artist artist);

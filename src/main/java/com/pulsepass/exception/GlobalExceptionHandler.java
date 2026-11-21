@@ -3,6 +3,7 @@ package com.pulsepass.exception;
 import com.pulsepass.dto.response.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -101,6 +102,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({DuplicateResourceException.class, BusinessRuleException.class})
     public ResponseEntity<ErrorResponse> handleConflict(RuntimeException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
+    }
+
+    // Dos requests al mismo tiempo pueden pasar la validacion del Service y chocar con el UNIQUE de PostgreSQL.
+    // Sin este handler eso terminaba en 500; es un conflicto, asi que se responde 409 sin mostrar el SQL.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return build(HttpStatus.CONFLICT, "The data conflicts with an existing record", Map.of());
     }
 
     // ---------- 500: cualquier otra cosa, sin exponer detalles internos ----------
