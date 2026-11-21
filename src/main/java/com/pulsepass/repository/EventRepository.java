@@ -18,12 +18,15 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     boolean existsByEventCode(String eventCode);
 
+    @EntityGraph(attributePaths = "venue")
     List<Event> findByStatusOrderByEventDateAsc(EventStatus status);
 
+    @EntityGraph(attributePaths = "venue")
     List<Event> findByVenue_CodeOrderByEventDateAsc(String venueCode);
 
     @Query("""
         SELECT DISTINCT e FROM Event e
+        JOIN FETCH e.venue
         JOIN e.artists a
         WHERE a.stageName = :stageName
         """)
@@ -31,6 +34,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     @Query("""
         SELECT DISTINCT e FROM Event e
+        JOIN FETCH e.venue
         JOIN e.artists a
         WHERE e.venue.city = :city
         AND a.stageName = :stageName
@@ -40,6 +44,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     @Query("""
         SELECT DISTINCT e FROM Event e
+        JOIN FETCH e.venue
         JOIN e.artists a
         WHERE e.status = 'PUBLISHED'
         AND e.eventDate > :afterDate
