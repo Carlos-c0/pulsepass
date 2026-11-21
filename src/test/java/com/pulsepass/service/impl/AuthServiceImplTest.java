@@ -9,6 +9,7 @@ import com.pulsepass.dto.response.AuthResponse;
 import com.pulsepass.dto.response.AuthenticatedUserResponse;
 import com.pulsepass.dto.response.UserResponse;
 import com.pulsepass.exception.DuplicateResourceException;
+import com.pulsepass.mapper.AuthMapper;
 import com.pulsepass.repository.UserCredentialRepository;
 import com.pulsepass.repository.UserRepository;
 import com.pulsepass.security.JwtService;
@@ -17,9 +18,11 @@ import com.pulsepass.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -59,6 +62,10 @@ class AuthServiceImplTest {
 
     @Mock
     private JwtService jwtService;
+
+    // Mapper real generado por MapStruct (no es un mock): asi la prueba de /me revisa el mapeo de verdad
+    @Spy
+    private AuthMapper authMapper = Mappers.getMapper(AuthMapper.class);
 
     @InjectMocks
     private AuthServiceImpl authService;
