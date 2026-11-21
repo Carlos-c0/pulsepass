@@ -5,7 +5,7 @@ import com.pulsepass.dto.response.TicketResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
+@Mapper(config = PulsePassMapperConfig.class)
 public interface TicketMapper {
 
     @Mapping(target = "userEmail", source = "user.email")

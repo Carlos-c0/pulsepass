@@ -4,7 +4,7 @@ import com.pulsepass.domain.Venue;
 import com.pulsepass.dto.response.VenueResponse;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "spring")
+@Mapper(config = PulsePassMapperConfig.class)
 public interface VenueMapper {
 
     VenueResponse toResponse(Venue venue);

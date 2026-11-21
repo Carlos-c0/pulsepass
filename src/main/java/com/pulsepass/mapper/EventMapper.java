@@ -3,15 +3,10 @@ package com.pulsepass.mapper;
 import com.pulsepass.domain.Event;
 import com.pulsepass.dto.response.EventResponse;
 import com.pulsepass.dto.response.EventSummaryResponse;
-import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(
-        componentModel = "spring",
-        uses = ArtistMapper.class,
-        injectionStrategy = InjectionStrategy.CONSTRUCTOR
-)
+@Mapper(config = PulsePassMapperConfig.class, uses = ArtistMapper.class)
 public interface EventMapper {
 
     @Mapping(target = "venueCode", source = "venue.code")

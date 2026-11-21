@@ -6,7 +6,7 @@ import com.pulsepass.dto.response.UserResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
+@Mapper(config = PulsePassMapperConfig.class)
 public interface UserMapper {
 
     @Mapping(target = "id", source = "user.id")
