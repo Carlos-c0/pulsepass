@@ -8,7 +8,7 @@ Resultados posibles: `PASS` (HTTP, JSON y efecto coinciden), `FAIL` (algo no coi
 |---|---|---|---|---|---|
 | 1 | Alexander Fajardo | 2026-10-17 | r01 | 59695d7 Merge pull request #26 (test/e2e-collection-catalog) | 00 a 05 |
 | 2 | Carlos Crespo | 2026-10-18 | r01 | a60fdb6 Merge pull request #29 (docs/e2e-guide) | 06 a 09 (repite 00 a 05 solo para preparar datos) |
-| 3 | TU NOMBRE | 2026-11-20 | r01 | COMMIT (git log -1 --oneline) | 00 a 06 (regresión de la revisión final) |
+| 3 | Alexander Fajardo | 2026-11-20 | r01 | a6e79d5 test(e2e): registrar la corrida 3 despues de la revision | 00 a 06 (regresión de la revisión final) |
 
 ## 00 Preparación / conectividad
 
