@@ -127,3 +127,29 @@ Además, `TicketResponse` no trae el nombre del titular, así que donde el dise�
 ## Pruebas
 
 72 pruebas en 9 archivos, con la API simulada por MSW (`src/test/mocks/handlers.ts`). Los nombres siguen los IDs del PRD (`TEST-FE-AUTH-*`, `TEST-FE-EVT-*`, `TEST-FE-TKT-*`, `TEST-FE-STF-*`, `TEST-FE-ADM-*`, `TEST-FE-GEN-*`). Cualquier petición que no tenga mock hace fallar la prueba.
+
+## Calidad (Lighthouse, móvil)
+
+| Página       | Performance | Accessibility | Best Practices |
+| ------------ | ----------- | ------------- | -------------- |
+| `/` (Inicio) | 92          | 95            | 100            |
+
+Medido el 2026-11-21 con `npm run build` y `npm run preview`, en modo oscuro, desde las herramientas de desarrollo del navegador (Lighthouse, modo _Navigation_, dispositivo _Mobile_). El PRD pide Performance ≥ 80 en Inicio (NFR-FE-003) y ningún error crítico de accesibilidad (QT-FE-011).
+
+![Reporte de Lighthouse en Inicio](docs/lighthouse-inicio.png)
+
+Después de la medición se corrigió el contraste del botón "Ver cartelera" en modo oscuro (el texto quedaba claro sobre fondo blanco).
+
+## Integrantes
+
+| Nombre            |
+| ----------------- | 
+| Alexander Fajardo |
+| Carlos Crespo     |
+
+## Problemas que tuvimos
+
+- La clave JWT generada con `openssl` en la terminal de IntelliJ traía un `\r` al final y la API no arrancaba (`not valid Base64`). Se arregló con `| tr -d '\r\n'`.
+- Los tokens duran 15 minutos y vencían a mitad del recorrido E2E en Postman; hubo que repetir los logins y anotarlo en la bitácora.
+- La copia de la colección de Postman que teníamos importada era vieja (solo carpetas 00 a 05) y hubo que reimportarla desde el repositorio.
+- `create-vite` trae ahora TypeScript 7 y oxlint, pero `typescript-eslint` todavía no soporta TypeScript 7; se dejó TypeScript 6 con ESLint.

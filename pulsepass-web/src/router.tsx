@@ -4,6 +4,7 @@ import Layout from './layouts/Layout'
 import RutaPorRol from './layouts/RutaPorRol'
 import RutaProtegida from './layouts/RutaProtegida'
 import SoloAnonimo from './layouts/SoloAnonimo'
+import Cargando from './componentes/Cargando'
 import ErrorPagina from './pages/ErrorPagina'
 import Inicio from './pages/Inicio'
 
@@ -17,6 +18,8 @@ export const rutas: RouteObject[] = [
         path: '/',
         Component: Layout,
         errorElement: <ErrorPagina />,
+        // Se ve mientras llega la primera pagina lazy (si se entra directo a /eventos, por ejemplo)
+        hydrateFallbackElement: <Cargando />,
         children: [
             { index: true, Component: Inicio },
             { path: 'eventos', lazy: pagina(() => import('./pages/CatalogoEventos')) },

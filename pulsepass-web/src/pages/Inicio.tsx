@@ -35,16 +35,16 @@ export default function Inicio() {
                     <div className="mt-5 flex flex-col gap-3 sm:mt-8 sm:flex-row">
                         <EnlaceBoton
                             to={RUTAS.eventos}
-                            className="text-marca-700 hover:bg-marca-50 bg-white sm:min-h-13 sm:px-5 sm:text-base"
-                            variante="fantasma"
+                            variante="blanco"
+                            className="sm:min-h-13 sm:px-5 sm:text-base"
                         >
                             Ver cartelera
                         </EnlaceBoton>
                         {sesion.estado !== 'autenticado' && (
                             <EnlaceBoton
                                 to={RUTAS.registro}
-                                variante="fantasma"
-                                className="border border-white/90 text-white hover:bg-white/10 sm:min-h-13 sm:px-5 sm:text-base dark:text-white"
+                                variante="contornoBlanco"
+                                className="sm:min-h-13 sm:px-5 sm:text-base"
                             >
                                 Crear cuenta
                             </EnlaceBoton>

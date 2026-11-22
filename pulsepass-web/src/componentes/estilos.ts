@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 // Clases compartidas por varios componentes. Viven aparte porque un archivo de componentes
 // solo debe exportar componentes (asi funciona la recarga en caliente de Vite).
 
-export type Variante = 'primario' | 'secundario' | 'peligro' | 'fantasma'
+export type Variante =
+    'primario' | 'secundario' | 'peligro' | 'fantasma' | 'blanco' | 'contornoBlanco'
 export type Tamano = 'normal' | 'grande' | 'pequeno'
 
 // Clases completas por variante: Tailwind solo genera las clases que encuentra escritas (FE-008)
@@ -13,6 +14,9 @@ export const VARIANTES: Record<Variante, string> = {
         'border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800',
     peligro: 'bg-red-600 text-white hover:bg-red-700',
     fantasma: 'text-marca-700 hover:bg-marca-50 dark:text-indigo-300 dark:hover:bg-slate-800',
+    // Sobre el degradado de Inicio: se ven igual en claro y en oscuro (sin variantes dark:)
+    blanco: 'bg-white text-marca-700 hover:bg-marca-50',
+    contornoBlanco: 'border border-white/90 text-white hover:bg-white/10',
 }
 
 export const TAMANOS: Record<Tamano, string> = {
