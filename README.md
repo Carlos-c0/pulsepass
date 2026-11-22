@@ -7,6 +7,7 @@ Núcleo de **PulsePass**, una plataforma de eventos, artistas y entradas. Tiene 
 - **Controladores:** API REST con Spring MVC, validación de requests con Bean Validation, manejo centralizado de errores y pruebas de contrato HTTP con MockMvc.
 - **Seguridad:** autenticación stateless con JWT Bearer, contraseñas con BCrypt, roles `USER`, `STAFF` y `ADMIN`, y control de propiedad de los recursos.
 - **Pruebas E2E:** colección de Postman para recorrer a mano las 22 rutas contra la aplicación real y PostgreSQL, con bitácora de resultados.
+- **Frontend:** SPA en React + TypeScript + Tailwind dentro de [`pulsepass-web/`](pulsepass-web/README.md), que consume esta API con JWT y respeta los roles.
 
 La fuente de verdad de los requisitos es `PRD_PulsePass.md` (persistencia), `PRD_PulsePass_Capa_Servicios` (servicios) `PRD_PulsePass_Capa_Controladores_v2` (controladores) `PRD_PulsePass_Capa_Seguridad_Spring_Security_JJWT` (seguridad) y `PRD_PulsePass_Pruebas_E2E_Postman_Manual` (pruebas E2E). Los IDs que aparecen abajo (`FR-*`, `BR-*`, `AC-*`, `QT-*`, `SRV-*`, `CTRL-*`, `TEST-*`, `SEC-*`, `T-SEC-*`) son los de esos documentos.
 
